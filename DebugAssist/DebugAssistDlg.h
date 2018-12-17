@@ -1,0 +1,129 @@
+﻿
+// DebugAssistDlg.h : header file
+//
+
+#pragma once
+
+#include <vector>
+#include <set>
+#include <map>
+#include "CAutoComboBox.h"
+using std::vector;
+using std::set;
+using std::map;
+
+
+struct DISK_T{
+
+	DISK_T(CString r);
+
+	CString root;
+	CString VolumnLabel;
+	CString FileSys;
+	DWORD SerialNumber;
+	DWORD MaxCLength;
+	DWORD FileSysFlag;
+
+};
+
+
+// CDebugAssistDlg dialog
+class CDebugAssistDlg : public CDialogEx
+{
+// Construction
+public:
+	CDebugAssistDlg(CWnd* pParent = nullptr);	// standard constructor
+
+// Dialog Data
+#ifdef AFX_DESIGN_TIME
+	enum { IDD = IDD_DEBUGASSIST_DIALOG };
+#endif
+
+	protected:
+	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
+
+public:
+	void CloseFormatWnds();
+	void UpdateStatusProc();
+	void EnableCtrls(BOOL bEnable);
+	int RemoveUefiDrive();
+
+// Implementation
+private:
+	BOOL GetFileTime(CString path, SYSTEMTIME &st);
+	void AppendDebug(WPARAM wParam, LPARAM lParam);
+	void AppendDebug(CString text);
+	void LoadIni();
+	void SaveIni();
+	int GetComList();
+	void GetDiskList();
+	BOOL GetDrivePhysicalNo();
+	void EnableBcdDebug(BOOL bEnable);
+	void GetAppDataConfigDir();
+	void AddFfuPath(CString path);
+	void AddWorkspace(CString ws);
+	void AddSourceFilePath(CString path);
+	void AddComboString(CAutoComboBox &box, CString &item);
+	void AddComboString(CAutoComboBox & box, LPCWSTR item);
+	void CleanEnvironment();
+	void LoadWindbgParameter();
+	void SaveWindbgParameter();
+	void UpdateWindbgParameter();
+	void LoadComboStrings(CAutoComboBox &box, LPCWSTR key);
+	void SaveComboStrings(CAutoComboBox &box, LPCWSTR key);
+	BOOL IsFileDirExist(CString path) const;
+	CString RetriveFilename(CString path);
+	BOOL SetComboText(CAutoComboBox &box, CString item);
+	BOOL SetComboLastSelected(CAutoComboBox &box);
+private:
+	int m_nPhysicalDriveNo;
+	CString m_strAppDataConfigDir;
+	CString m_strSettingIniPath;
+	vector<DISK_T> m_vecDisks;
+	vector<CString> m_vecDebugInfoLines;
+	map<CString, CString> m_mapWindbgParameter;
+	
+protected:
+	void UpdateStatus();
+	void CDebugAssistDlg::RegisterDevice();
+	HICON m_hIcon;
+
+	// Generated message map functions
+	virtual BOOL OnInitDialog();
+	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
+	afx_msg void OnPaint();
+	afx_msg HCURSOR OnQueryDragIcon();
+	afx_msg BOOL OnDeviceChange(UINT nEventType, DWORD_PTR dwData);
+	DECLARE_MESSAGE_MAP()
+public:
+	afx_msg void OnBnClickedBtnComDbg();
+	CAutoComboBox m_cbComPorts;
+protected:
+	afx_msg LRESULT OnMsgAppendAdbCmd(WPARAM wParam, LPARAM lParam);
+public:
+	CRichEditCtrl m_reLog;
+	afx_msg void OnBnClickedButtonBrowse();
+	CAutoComboBox m_cbFfuPaths;
+	afx_msg void OnBnClickedBtnFlash();
+	afx_msg void OnClose();
+	CAutoComboBox m_cbDisks;
+	afx_msg void OnBnClickedButtonBcdEnDbg();
+	afx_msg void OnBnClickedButtonBcdDisableDbg();
+	CAutoComboBox m_cbWorkspaces;
+	afx_msg void OnBnClickedButtonBrowseSys();
+	CAutoComboBox m_cbDriverSourceFile;
+	CAutoComboBox m_cbDestinationDir;
+	afx_msg void OnBnClickedButtonBrowseDestDir();
+	afx_msg void OnBnClickedButtonReplace();
+	CAutoComboBox m_cbExtraParams;
+	afx_msg void OnBnClickedButtonEjectDrive();
+	CAutoComboBox m_cbDebuggeeIPs;
+	CAutoComboBox m_cbDebuggeePorts;
+	afx_msg void OnBnClickedButtonTestIp();
+	afx_msg void OnBnClickedButtonBackstageAdmin();
+	CButton m_btnFlash;
+	afx_msg void OnBnClickedButtonRefresh();
+	afx_msg void OnBnClickedButtonUefiDir();
+public:
+	afx_msg LRESULT OnUmsgComSelChange(WPARAM wParam, LPARAM lParam);
+};
