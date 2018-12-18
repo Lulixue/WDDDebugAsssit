@@ -517,7 +517,7 @@ void CDebugAssistDlg::GetDiskList()
 		else if (!cit->VolumnLabel.CompareNoCase(TEXT("MainOS")))
 		{
 			driverPath.Format(L"%s\\Windows\\system32\\drivers", cit->root);
-
+			driverPath.Replace(L"\\\\", L"\\");
 			if (IsFileDirExist(driverPath))
 			{
 				AddComboString(m_cbDestinationDir, driverPath);
@@ -698,7 +698,8 @@ void CDebugAssistDlg::CloseFormatWnds()
 			}
 			memset(text, 0, MAX_PATH * sizeof(WCHAR));
 			::GetWindowText(hwndChild, text, MAX_PATH);
-			if (!StrCmpCW(text, L"格式化磁盘")) 
+			if (!StrCmpCW(text, L"格式化磁盘") ||
+				!StrCmpCW(text, L"Format disk"))
 			{
 				::PostMessage(hWnd_Dlg, WM_CLOSE, 0, 0);
 				Sleep(100);
@@ -745,29 +746,29 @@ void CDebugAssistDlg::UpdateStatusProc()
 	}
 
 	size = m_cbComPorts.GetCount();
-	if (size > vecComPorts.size())
+	int sel = 0;
+	vector<CString>::const_iterator cit;
+	for (UINT i = 0; i < size; i++)
 	{
-		vector<CString>::const_iterator cit;
-		for (UINT i = 0; i < size; i++)
+		m_cbComPorts.GetLBText(i, port);
+		cit = std::find(vecComPorts.begin(), vecComPorts.end(), port);
+		if (cit == vecComPorts.end())
 		{
-			m_cbComPorts.GetLBText(i, port);
-			cit = std::find(vecComPorts.begin(), vecComPorts.end(), port);
-			if (cit == vecComPorts.end())
+			sel = i;
+			break;
+		}
+		else if (size < vecComPorts.size())
+		{
+			if (!lastPort.CompareNoCase(port))
 			{
-				m_cbComPorts.SetCurSel(i);
-				return;
+				sel = i;
+				break;
 			}
 		}
-		
 	}
-
-	if (lastPort.IsEmpty())
+	if (size > 0)
 	{
-		m_cbComPorts.SetCurSel(0);
-	}
-	else
-	{
-		SetComboText(m_cbComPorts, lastPort);
+		m_cbComPorts.SetCurSel(sel);
 	}
 	UpdateWindbgParameter();
 }
@@ -836,22 +837,17 @@ void CDebugAssistDlg::AppendDebug(WPARAM wParam, LPARAM lParam)
 	if (type == 0) {
 		strNewText = TEXT("\r\n> ");
 	}
+	else if (type == 1) {
+		strNewText = TEXT("\r\n ");
+	}
 	strNewText += *pLog;
 	strNewText += TEXT("\r\n");
 	delete pLog;
 
-	if (type == 1) { // replace last line
-		if (!m_vecDebugInfoLines.empty()) {
-			m_vecDebugInfoLines.pop_back();
-		}
-	}
 	TRACE(L"AppendDebug:%d, %s\n", type, strNewText);
-	m_vecDebugInfoLines.push_back(strNewText);
-	vector<CString>::const_iterator cit = m_vecDebugInfoLines.begin();
-	for (; cit != m_vecDebugInfoLines.end(); cit++)
-	{
-		strTotalText += *cit;
-	}
+
+	m_reLog.GetWindowTextW(strTotalText);
+	strTotalText += strNewText;
 
 	m_reLog.SetWindowTextW(strTotalText);
 	m_reLog.PostMessageW(WM_VSCROLL, SB_BOTTOM, 0);
