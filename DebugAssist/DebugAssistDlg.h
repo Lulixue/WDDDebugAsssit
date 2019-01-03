@@ -50,7 +50,7 @@ public:
 
 // Implementation
 private:
-	BOOL GetFileTime(CString path, SYSTEMTIME &st);
+	BOOL GetFileTime(CString path, SYSTEMTIME &st) const;
 	void AppendDebug(WPARAM wParam, LPARAM lParam);
 	void AppendDebug(CString text);
 	void LoadIni();
@@ -58,6 +58,7 @@ private:
 	int GetComList();
 	void GetDiskList();
 	BOOL GetDrivePhysicalNo();
+	void UpdateDestDriverFilename();
 	void EnableBcdDebug(BOOL bEnable);
 	void GetAppDataConfigDir();
 	void AddFfuPath(CString path);
@@ -75,6 +76,7 @@ private:
 	CString RetriveFilename(CString path);
 	BOOL SetComboText(CAutoComboBox &box, CString item);
 	BOOL SetComboLastSelected(CAutoComboBox &box);
+	void ShowFileInfo(CAutoComboBox &box);
 private:
 	int m_nPhysicalDriveNo;
 	CString m_strAppDataConfigDir;
@@ -126,4 +128,8 @@ public:
 	afx_msg void OnBnClickedButtonUefiDir();
 public:
 	afx_msg LRESULT OnUmsgComSelChange(WPARAM wParam, LPARAM lParam);
+	CEdit m_editDstFilename;
+	CAutoComboBox m_cbFwFitMergedPaths;
+	afx_msg void OnBnClickedButtonBrowseFwfitmerged();
+	afx_msg void OnBnClickedButtonDdFlash();
 };

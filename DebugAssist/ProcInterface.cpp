@@ -82,17 +82,29 @@ BOOL CProcessInterface::CreateCmdWindow(P_PARAM_T para)
 	TRACE(TEXT("\n"));
 
 	SendDebugMessage(para->strCmd);
-	if (para->nType == CMD_BAT_SCRIPT)
+	if (para->nType & CMD_BAT_SCRIPT)
 	{
 		ShellExecute(NULL, NULL, para->strCmd, para->strReturn, NULL, SW_SHOW);
 	}
-	else if (para->nType == CMD_OPEN)
+	else if (para->nType & CMD_OPEN)
 	{
 		ShellExecute(NULL, L"Open", para->strCmd, NULL, NULL, SW_SHOW);
+	}
+	else if (para->nType & CMD_POWERSHELL)
+	{
+		if (para->nType & CMD_NO_EXIT)
+		{
+			para->strCmd.Format(L"/noExit %s", para->strCmd);
+		}
+		ShellExecute(NULL, L"Open", L"powershell", para->strCmd, NULL, SW_SHOW);
 	}
 	else 
 	{
 		para->strCmd = AddProcessPrefix(para->strCmd);
+		if (para->nType & CMD_NO_EXIT)
+		{
+			para->strCmd.Replace(L"/c", L"/k");
+		}
 		ShellExecute(NULL, TEXT("open"), TEXT("cmd.exe"), para->strCmd, NULL, SW_SHOW);
 	}
 

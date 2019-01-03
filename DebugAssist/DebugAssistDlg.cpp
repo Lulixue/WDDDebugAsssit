@@ -18,6 +18,7 @@
 HWND g_hwndDebug;
 // CAboutDlg dialog used for App About
 
+#define ST_TIME_PARA(st)   st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond
 #define THREAD_START()  TRACE("%s(%d) start\n", __func__, GetCurrentThreadId())
 #define THREAD_EXIT()  TRACE("%s(%d) exit\n", __func__, GetCurrentThreadId())
 
@@ -76,6 +77,8 @@ void CDebugAssistDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_COMBO_DEBUGGEE_IP, m_cbDebuggeeIPs);
 	DDX_Control(pDX, IDC_COMBO_DEBUGGEE_PORT, m_cbDebuggeePorts);
 	DDX_Control(pDX, IDC_BTN_FLASH, m_btnFlash);
+	DDX_Control(pDX, IDC_EDIT_DST_FILENAME, m_editDstFilename);
+	DDX_Control(pDX, IDC_COMBO_FWFITM_PATH, m_cbFwFitMergedPaths);
 }
 
 BEGIN_MESSAGE_MAP(CDebugAssistDlg, CDialogEx)
@@ -99,6 +102,8 @@ BEGIN_MESSAGE_MAP(CDebugAssistDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_REFRESH, &CDebugAssistDlg::OnBnClickedButtonRefresh)
 	ON_BN_CLICKED(IDC_BUTTON_UEFI_DIR, &CDebugAssistDlg::OnBnClickedButtonUefiDir)
 	ON_MESSAGE(UMSG_COMBO_SEL_CHANGE, &CDebugAssistDlg::OnUmsgComSelChange)
+	ON_BN_CLICKED(IDC_BUTTON_BROWSE_FWFITMERGED, &CDebugAssistDlg::OnBnClickedButtonBrowseFwfitmerged)
+	ON_BN_CLICKED(IDC_BUTTON_DD_FLASH, &CDebugAssistDlg::OnBnClickedButtonDdFlash)
 END_MESSAGE_MAP()
 
 
@@ -239,6 +244,7 @@ void CDebugAssistDlg::LoadIni()
 	LoadComboStrings(m_cbExtraParams, TEXT("WindbgExtraParam"));
 	LoadComboStrings(m_cbDebuggeeIPs, TEXT("DebuggeeIP"));
 	LoadComboStrings(m_cbDebuggeePorts, TEXT("DebuggeePort"));
+	LoadComboStrings(m_cbFwFitMergedPaths, TEXT("UbootPath"));
 	LoadWindbgParameter();
 }
 
@@ -309,6 +315,33 @@ BOOL CDebugAssistDlg::SetComboLastSelected(CAutoComboBox & box)
 	return SetComboText(box, box.GetLastSelected());
 }
 
+void CDebugAssistDlg::ShowFileInfo(CAutoComboBox & box) 
+{
+	CString strFile;
+	CString strInfo;
+	BOOL bRet;
+	SYSTEMTIME st;
+
+	box.GetWindowTextW(strFile);
+	bRet = GetFileTime(strFile, st);
+	
+	strInfo.Format(L"%s\r\n", strFile);
+	if (bRet)
+	{
+		strInfo.AppendFormat(L"File Time: %04d/%02d/%02d %02d:%02d:%02d", ST_TIME_PARA(st));
+	}
+	else {
+		if (!IsFileDirExist(strFile)) {
+			strInfo.AppendFormat(L"File Not Exist!");
+		}
+		else {
+			strInfo.AppendFormat(L"nGet File Time Error!");
+		}
+		
+	}
+	AppendDebug(strInfo);
+}
+
 void CDebugAssistDlg::SaveIni()
 {
 	SaveComboStrings(m_cbFfuPaths, TEXT("FFU"));
@@ -318,6 +351,7 @@ void CDebugAssistDlg::SaveIni()
 	SaveComboStrings(m_cbExtraParams, TEXT("WindbgExtraParam"));
 	SaveComboStrings(m_cbDebuggeeIPs, TEXT("DebuggeeIP"));
 	SaveComboStrings(m_cbDebuggeePorts, TEXT("DebuggeePort"));
+	SaveComboStrings(m_cbFwFitMergedPaths, TEXT("UbootPath"));
 	SaveWindbgParameter();
 }
 
@@ -380,9 +414,9 @@ BOOL CDebugAssistDlg::OnInitDialog()
 	RegisterDevice();
 	GetAppDataConfigDir();
 	CProcessInterface::Reset(m_strAppDataConfigDir);
-	UpdateStatusProc();
 	LoadIni();
 	CleanEnvironment();
+	UpdateStatusProc();
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -585,6 +619,7 @@ BOOL CDebugAssistDlg::GetDrivePhysicalNo()
 	return !strDrvNo.IsEmpty();
 }
 
+
 DISK_T::DISK_T(CString r) : root(r)
 {
 	WCHAR label[50] = { 0 };
@@ -757,7 +792,7 @@ void CDebugAssistDlg::UpdateStatusProc()
 			sel = i;
 			break;
 		}
-		else if (size < vecComPorts.size())
+		else if (size <= vecComPorts.size())
 		{
 			if (!lastPort.CompareNoCase(port))
 			{
@@ -771,6 +806,7 @@ void CDebugAssistDlg::UpdateStatusProc()
 		m_cbComPorts.SetCurSel(sel);
 	}
 	UpdateWindbgParameter();
+	UpdateDestDriverFilename();
 }
 
 void CDebugAssistDlg::EnableCtrls(BOOL bEnable)
@@ -780,8 +816,9 @@ void CDebugAssistDlg::EnableCtrls(BOOL bEnable)
 			IDC_BUTTON_BROWSE_DEST_DIR, IDC_BUTTON_BCD_EN_DBG, IDC_BUTTON_BROWSE, IDC_BUTTON_BROWSE_DEST_DIR,
 			IDC_BUTTON_BROWSE_SYS, IDC_BUTTON_REPLACE, IDC_COMBO_COMS, IDC_COMBO_DEST_DIR, IDC_COMBO_DISKS,
 			IDC_COMBO_EXTRA_PARAMS, IDC_COMBO_FFU_PATHS, IDC_COMBO_SOURCE_SYS_FILE, IDC_COMBO_WORKSPACE,
-			IDC_RICHEDIT_LOG, IDC_COMBO_DEBUGGEE_IP, IDC_COMBO_DEBUGGEE_PORT, 
+			IDC_RICHEDIT_LOG, IDC_COMBO_DEBUGGEE_IP, IDC_COMBO_DEBUGGEE_PORT, IDC_EDIT_DST_FILENAME,
 			IDC_BUTTON_TEST_IP, IDC_BUTTON_BACKSTAGE_ADMIN, IDC_BUTTON_REFRESH, IDC_BUTTON_UEFI_DIR,
+			IDC_BUTTON_BROWSE_FWFITMERGED, IDC_COMBO_FWFITM_PATH, IDC_BUTTON_DD_FLASH,
 	};
 
 	int size = sizeof(CONTROLS) / sizeof(UINT);
@@ -855,7 +892,7 @@ void CDebugAssistDlg::AppendDebug(WPARAM wParam, LPARAM lParam)
 }
 void CDebugAssistDlg::AppendDebug(CString text)
 {
-	AppendDebug((WPARAM)(new CString(text)), 0);
+	PostMessage(MSG_APPEND_ADB_CMD, (WPARAM)(new CString(text)), 0);
 }
 afx_msg LRESULT CDebugAssistDlg::OnMsgAppendAdbCmd(WPARAM wParam, LPARAM lParam)
 {
@@ -894,8 +931,10 @@ void CDebugAssistDlg::OnBnClickedBtnFlash()
 {
 	PARAM_T para;
 	CString strPath;
-	
+
+	ShowFileInfo(m_cbFfuPaths);
 	m_cbFfuPaths.GetWindowTextW(strPath);
+	para.nType = CMD_NO_EXIT;
 	para.strCmd.Format(TEXT("dism /apply-image /imagefile:%s /ApplyDrive:\\\\.\\PhysicalDrive%d /SkipPlatformCheck"), 
 					strPath, m_nPhysicalDriveNo);
 	
@@ -986,7 +1025,7 @@ int GetDiffSeconds(const SYSTEMTIME &t1, const SYSTEMTIME &t2)
 }
 
 
-BOOL CDebugAssistDlg::GetFileTime(CString path, SYSTEMTIME & st)
+BOOL CDebugAssistDlg::GetFileTime(CString path, SYSTEMTIME & st) const
 {
 	WIN32_FILE_ATTRIBUTE_DATA lpinf;
 	SYSTEMTIME stUTC;
@@ -1000,7 +1039,17 @@ BOOL CDebugAssistDlg::GetFileTime(CString path, SYSTEMTIME & st)
 	return bRet;
 }
 
-#define ST_TIME_PARA(st)   st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond
+
+
+
+void CDebugAssistDlg::UpdateDestDriverFilename()
+{
+	CString srcPath;
+	CString srcFilename;
+	m_cbDriverSourceFile.GetWindowTextW(srcPath);
+	srcFilename = RetriveFilename(srcPath);
+	m_editDstFilename.SetWindowTextW(srcFilename);
+}
 
 void CDebugAssistDlg::OnBnClickedButtonReplace()
 {
@@ -1008,6 +1057,7 @@ void CDebugAssistDlg::OnBnClickedButtonReplace()
 	CString destPath;
 	CString backupPath;
 	CString srcFilename;
+	CString destFilename;
 	SYSTEMTIME stSrc, stDest;
 	CString debugInfo;
 	CString info;
@@ -1017,8 +1067,15 @@ void CDebugAssistDlg::OnBnClickedButtonReplace()
 	m_cbDriverSourceFile.GetWindowTextW(srcPath);
 	m_cbDestinationDir.GetWindowTextW(destPath);
 	srcFilename = RetriveFilename(srcPath);
-	destPath.AppendFormat(TEXT("\\%s"), srcFilename); 
-	backupPath.Format(L"%s\\%s", m_strAppDataConfigDir, srcFilename);
+	m_editDstFilename.GetWindowTextW(destFilename);
+	
+	if (destFilename.IsEmpty())
+	{
+		destFilename = srcFilename;
+	}
+
+	destPath.AppendFormat(TEXT("\\%s"), destFilename);
+	backupPath.Format(L"%s\\%s", m_strAppDataConfigDir, destFilename);
 
 	if (srcPath.IsEmpty() || destPath.IsEmpty())
 	{
@@ -1297,6 +1354,73 @@ afx_msg LRESULT CDebugAssistDlg::OnUmsgComSelChange(WPARAM wParam, LPARAM lParam
 	{
 		UpdateWindbgParameter();
 	}
+	else if (ctrlID == m_cbDriverSourceFile.GetDlgCtrlID())
+	{
+		UpdateDestDriverFilename();
+		ShowFileInfo(m_cbDriverSourceFile);
+		ShowFileInfo(m_cbDestinationDir);
+	}
+	else if ((m_cbFwFitMergedPaths.GetDlgCtrlID() == ctrlID))
+	{
+		ShowFileInfo(m_cbFwFitMergedPaths);
+	}
+	else if (m_cbFfuPaths.GetDlgCtrlID() == ctrlID)
+	{
+		ShowFileInfo(m_cbFfuPaths);
+	}
+	else if (m_cbDestinationDir.GetDlgCtrlID() == ctrlID)
+	{
+		ShowFileInfo(m_cbDestinationDir);
+	}
 
 	return 0;
 }
+
+
+void CDebugAssistDlg::OnBnClickedButtonBrowseFwfitmerged()
+{
+	CFileDialog ffuDialog(TRUE, TEXT("Uboot File for IOT"),
+		NULL, OFN_OVERWRITEPROMPT | OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST,
+		TEXT("firmware_fit.merged|*.merged|"), this);
+
+	//wchar_t buffer[MAX_PATH] = { 0 };
+	//GetModuleFileName(NULL, buffer, MAX_PATH);
+	//CString strCurDir = buffer;
+	//int pos = strCurDir.ReverseFind(TEXT('\\'));
+	//strCurDir = strCurDir.Mid(0, pos);
+	//strCurDir += TEXT("\\apks");
+
+	//fileDlgApk.m_ofn.lpstrInitialDir = strCurDir;
+
+	if (ffuDialog.DoModal() != IDOK) {
+		return;
+	}
+
+	CString strPath = ffuDialog.GetPathName();
+
+	AddComboString(m_cbFwFitMergedPaths, strPath);
+	SetComboText(m_cbFwFitMergedPaths, strPath);
+}
+
+
+void CDebugAssistDlg::OnBnClickedButtonDdFlash()
+{
+	int nRet;
+	nRet = MessageBox(TEXT("Are you sure to dd flash the drive?"), L"Warning", MB_YESNOCANCEL | MB_ICONQUESTION);
+	if (nRet != IDYES)
+	{
+		return;
+	}
+	ShowFileInfo(m_cbFwFitMergedPaths);
+
+	PARAM_T para;
+	CString strPath;
+
+	m_cbFwFitMergedPaths.GetWindowTextW(strPath);
+	para.nType = CMD_POWERSHELL | CMD_NO_EXIT;
+	para.strCmd.Format(TEXT("dd if=%s of=\\\\.\\PhysicalDrive%d bs=512 seek=2"),
+		strPath, m_nPhysicalDriveNo);
+
+	para.bRet = CProcessInterface::CreateCmdWindow(&para);
+}
+

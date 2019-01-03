@@ -20,6 +20,8 @@
 #define IDC_COMBO_DISKS                 1010
 #define IDC_BUTTON_BCD_DISABLE_DBG      1011
 #define IDC_BUTTON_BCD_EN_DBG           1012
+#define IDC_COMBO_FWFITM_PATH           1013
+#define IDC_BUTTON_BROWSE_FWFITMERGED   1014
 #define IDC_COMBO_DEST_DIR              1015
 #define IDC_BUTTON_REPLACE              1016
 #define IDC_COMBO_SOURCE_SYS_FILE       1017
@@ -31,6 +33,8 @@
 #define IDC_BUTTON_REFRESH              1024
 #define IDC_BUTTON1                     1025
 #define IDC_BUTTON_UEFI_DIR             1025
+#define IDC_EDIT_DST_FILENAME           1026
+#define IDC_BUTTON_DD_FLASH             1027
 
 // Next default values for new objects
 // 
@@ -38,7 +42,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        131
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1026
+#define _APS_NEXT_CONTROL_VALUE         1027
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

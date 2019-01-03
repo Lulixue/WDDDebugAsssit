@@ -16,9 +16,11 @@ public:
 protected:
 	DECLARE_MESSAGE_MAP()
 
+
 private:
 	CString m_strLastSelected;
 public:
+	int SetCurSel(int nSelect);
 	CString GetLastSelected() const { return m_strLastSelected; }
 	void SetLastSelected(CString item) { m_strLastSelected = item;  }
 	afx_msg void OnCbnDropdown();

@@ -12,6 +12,7 @@ BEGIN_MESSAGE_MAP(CAutoComboBox, CComboBox)
 	ON_CONTROL_REFLECT(CBN_KILLFOCUS, &CAutoComboBox::OnCbnKillfocus)
 END_MESSAGE_MAP()
 extern HWND g_hwndDebug;
+
 // CAutoComboBox 消息处理程序
 void CAutoComboBox::OnCbnDropdown()
 {
@@ -39,7 +40,12 @@ void CAutoComboBox::OnCbnDropdown()
 	//恢复实际dc
 	dc.RestoreDC(nSaveDC);
 }
-
+int CAutoComboBox::SetCurSel(int nSelect)
+{
+	int nRet = CComboBox::SetCurSel(nSelect);
+	::PostMessage(g_hwndDebug, UMSG_COMBO_SEL_CHANGE, (WPARAM)GetDlgCtrlID(), 0);
+	return nRet;
+}
 
 void CAutoComboBox::OnCbnSelchange()
 {
