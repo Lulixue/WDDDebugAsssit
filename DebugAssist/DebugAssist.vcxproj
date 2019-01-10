@@ -192,6 +192,7 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CSystemInfo.h" />
     <ClInclude Include="ProcInterface.h" />
     <ClInclude Include="CAutoComboBox.h" />
     <ClInclude Include="DebugAssist.h" />
@@ -201,6 +202,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CSystemInfo.cpp" />
     <ClCompile Include="ProcInterface.cpp" />
     <ClCompile Include="CAutoComboBox.cpp" />
     <ClCompile Include="DebugAssist.cpp" />

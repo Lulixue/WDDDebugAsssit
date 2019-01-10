@@ -10,6 +10,7 @@
 #include <atlbase.h>
 #include <DBT.h>
 #include <algorithm>
+#include "CSystemInfo.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -104,6 +105,9 @@ BEGIN_MESSAGE_MAP(CDebugAssistDlg, CDialogEx)
 	ON_MESSAGE(UMSG_COMBO_SEL_CHANGE, &CDebugAssistDlg::OnUmsgComSelChange)
 	ON_BN_CLICKED(IDC_BUTTON_BROWSE_FWFITMERGED, &CDebugAssistDlg::OnBnClickedButtonBrowseFwfitmerged)
 	ON_BN_CLICKED(IDC_BUTTON_DD_FLASH, &CDebugAssistDlg::OnBnClickedButtonDdFlash)
+	ON_STN_CLICKED(IDC_STATIC_SYSTEM_STATUS, &CDebugAssistDlg::OnStnClickedStaticSystemStatus)
+	ON_MESSAGE(UMSG_UPDATE_SYSTEM_STATUS, &CDebugAssistDlg::OnUmsgUpdateSystemStatus)
+	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 
@@ -234,13 +238,42 @@ void CDebugAssistDlg::LoadComboStrings(CAutoComboBox & box, LPCWSTR key)
 	SetComboLastSelected(box);
 }
 
+void CDebugAssistDlg::LoadComboStrings(set<CString>& setItems, LPCWSTR key)
+{
+	CString strIniPath = m_strSettingIniPath;
+
+	WCHAR strBuffer[MAX_PATH] = { 0 };
+	int nRet;
+
+	int count = GetPrivateProfileInt(key, TEXT("count"), 0, strIniPath);
+	GetPrivateProfileString(key, TEXT("lastSelected"), TEXT(""),
+		strBuffer, MAX_PATH, strIniPath);
+
+	for (int i = 0; i < count; i++)
+	{
+		CString strNo;
+		strNo.Format(TEXT("%d"), i);
+
+		memset(strBuffer, 0, MAX_PATH * sizeof(WCHAR));
+		nRet = GetPrivateProfileString(key, strNo, TEXT(""),
+			strBuffer, MAX_PATH, strIniPath);
+		if (nRet > 0)
+		{
+			if (wcslen(strBuffer) > 0)
+			{
+				setItems.insert(strBuffer);
+			}
+		}
+	}
+}
+
 
 void CDebugAssistDlg::LoadIni()
 {
 	LoadComboStrings(m_cbFfuPaths, TEXT("FFU"));
 	LoadComboStrings(m_cbWorkspaces, TEXT("Workspace"));
 	LoadComboStrings(m_cbDriverSourceFile, TEXT("DriverSource"));
-	LoadComboStrings(m_cbDestinationDir, TEXT("DriverDestDir"));
+	LoadComboStrings(m_setDriverDestDirs, TEXT("DriverDestDir"));
 	LoadComboStrings(m_cbExtraParams, TEXT("WindbgExtraParam"));
 	LoadComboStrings(m_cbDebuggeeIPs, TEXT("DebuggeeIP"));
 	LoadComboStrings(m_cbDebuggeePorts, TEXT("DebuggeePort"));
@@ -264,6 +297,29 @@ void CDebugAssistDlg::SaveComboStrings(CAutoComboBox &box, LPCWSTR key)
 		strCount.Format(TEXT("%d"), i);
 
 		box.GetLBText(i, value);
+
+		WritePrivateProfileString(key, strCount, value, strIniPath);
+	}
+}
+
+void CDebugAssistDlg::SaveComboStrings(set<CString>& setItems, LPCWSTR key)
+{
+	CString strIniPath = m_strSettingIniPath;
+	size_t count = setItems.size();
+	CString strCount;
+	CString value;
+
+	strCount.Format(TEXT("%d"), count);
+
+	WritePrivateProfileString(key, TEXT("count"), strCount, strIniPath);
+	WritePrivateProfileString(key, TEXT("lastSelected"), L"", strIniPath);
+
+	set<CString>::const_iterator cit = setItems.begin();
+	for (int i = 0; cit != setItems.end(); cit++,i++)
+	{
+		strCount.Format(TEXT("%d"), i);
+
+		value = *cit;
 
 		WritePrivateProfileString(key, strCount, value, strIniPath);
 	}
@@ -323,6 +379,11 @@ void CDebugAssistDlg::ShowFileInfo(CAutoComboBox & box)
 	SYSTEMTIME st;
 
 	box.GetWindowTextW(strFile);
+	if (box == m_cbDestinationDir)
+	{
+		m_editDstFilename.GetWindowTextW(strInfo);
+		strFile.AppendFormat(L"\\%s", strInfo);
+	}
 	bRet = GetFileTime(strFile, st);
 	
 	strInfo.Format(L"%s\r\n", strFile);
@@ -347,7 +408,7 @@ void CDebugAssistDlg::SaveIni()
 	SaveComboStrings(m_cbFfuPaths, TEXT("FFU"));
 	SaveComboStrings(m_cbWorkspaces, TEXT("Workspace"));
 	SaveComboStrings(m_cbDriverSourceFile, TEXT("DriverSource"));
-	SaveComboStrings(m_cbDestinationDir, TEXT("DriverDestDir"));
+	SaveComboStrings(m_setDriverDestDirs, TEXT("DriverDestDir"));
 	SaveComboStrings(m_cbExtraParams, TEXT("WindbgExtraParam"));
 	SaveComboStrings(m_cbDebuggeeIPs, TEXT("DebuggeeIP"));
 	SaveComboStrings(m_cbDebuggeePorts, TEXT("DebuggeePort"));
@@ -373,6 +434,21 @@ unsigned WINAPI ThreadUpdateStatus(LPVOID lP)
 	pDlg->EnableCtrls(TRUE);
 	bThreadRunning = FALSE;
 	THREAD_EXIT();
+	return 0;
+}
+
+
+unsigned WINAPI ThreadUpdateSystemInfo(LPVOID lP)
+{
+	while (TRUE)
+	{
+		SYSINFO.GetCpuUsage();
+		SYSINFO.GetMemoryUsage();
+		SYSINFO.GetNetworkTraffic();
+
+		PostMessage(g_hwndDebug, UMSG_UPDATE_SYSTEM_STATUS, 0, 0);
+		Sleep(500);
+	}
 	return 0;
 }
 
@@ -417,6 +493,8 @@ BOOL CDebugAssistDlg::OnInitDialog()
 	LoadIni();
 	CleanEnvironment();
 	UpdateStatusProc();
+
+	_beginthreadex(NULL, 0, ThreadUpdateSystemInfo, this, 0, NULL);
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -482,6 +560,9 @@ void CDebugAssistDlg::OnBnClickedBtnComDbg()
 	m_cbWorkspaces.GetWindowTextW(strWorkspace);
 	m_cbExtraParams.GetWindowTextW(strExtraParams);
 
+
+	CloseSpecificComWnd(strComPort);
+
 	PARAM_T para;
 	para.nType = CMD_JUST_RETURN;
 	para.strCmd.Format(TEXT("windbg.exe -a -d -b -v -k com:port=%s,baud=921600 -y \"cache*c:\\symbols; SRV*http://symweb\""), strComPort);
@@ -526,18 +607,7 @@ void CDebugAssistDlg::GetDiskList()
 
 
 	CString driverPath;
-	vector<CString> dirPaths;
-
-	CString dirPathCurrent;
-	CString currentDrive;
 	CString drivesInfo;
-	m_cbDestinationDir.GetWindowTextW(dirPathCurrent);
-	int count = m_cbDestinationDir.GetCount();
-	for (int i = 0; i < count; i++)
-	{
-		m_cbDestinationDir.GetLBText(i, driverPath);
-		dirPaths.push_back(driverPath);
-	}
 
 	m_cbDestinationDir.ResetContent();
 	vector<DISK_T>::const_iterator cit = m_vecDisks.begin();
@@ -547,6 +617,7 @@ void CDebugAssistDlg::GetDiskList()
 		if (!cit->VolumnLabel.CompareNoCase(TEXT("EFIESP")))
 		{
 			SetComboText(m_cbDisks, cit->root);
+			m_setDriverDestDirs.insert(cit->root);
 		}
 		else if (!cit->VolumnLabel.CompareNoCase(TEXT("MainOS")))
 		{
@@ -554,29 +625,37 @@ void CDebugAssistDlg::GetDiskList()
 			driverPath.Replace(L"\\\\", L"\\");
 			if (IsFileDirExist(driverPath))
 			{
-				AddComboString(m_cbDestinationDir, driverPath);
-				currentDrive = cit->root;
+				//AddComboString(m_cbDestinationDir, driverPath);
+				m_setDriverDestDirs.insert(driverPath);
 			}
 		}
 	}
 	drivesInfo.Format(L"Found %d disks:\r\n%s", m_vecDisks.size(), CString(drivesInfo));
 	AppendDebug(drivesInfo);
 
-	for (int i = 0; i < count; i++)
+}
+
+void CDebugAssistDlg::GetPhysicalDriveCount()
+{
+	PARAM_T para;
+	CString info;
+	para.nType = CMD_WAIT | CMD_NO_OUTPUT_RETURN | CMD_POWERSHELL;
+	para.nWaitMs = 1000;
+	para.strCmd.Format(TEXT("Get-WmiObject Win32_DiskDrive"));
+
+	CProcessInterface::CreateMyProcess(&para);
+
+	CString strPysclDrive = L"\\\\.\\PHYSICALD";// RIVE"; // 兼容出现乱码的情况
+	CString strUpper = para.strReturn.MakeUpper();
+	int nDrvPos = strUpper.Find(strPysclDrive);
+	m_systemStatus.nDriveCount = 0;
+	while (nDrvPos != -1)
 	{
-		AddComboString(m_cbDestinationDir, dirPaths.at(i));
-	}
-	if (dirPathCurrent.Find(currentDrive) == 0)
-	{
-		SetComboText(m_cbDestinationDir, dirPathCurrent);
-	}
-	else if (!currentDrive.IsEmpty())
-	{
-		m_cbDestinationDir.SetCurSel(0);
+		m_systemStatus.nDriveCount++;
+		nDrvPos = strUpper.Find(strPysclDrive, nDrvPos + 1);
 	}
 
 }
-
 BOOL CDebugAssistDlg::GetDrivePhysicalNo()
 {
 	PARAM_T para;
@@ -591,8 +670,10 @@ BOOL CDebugAssistDlg::GetDrivePhysicalNo()
 
 	CString strPysclDrive = L"\\\\.\\PHYSICALD";// RIVE"; // 兼容出现乱码的情况
 	CString strUpper = para.strReturn.MakeUpper();
+
 	int nPos = strUpper.Find(TEXT("REMOVABLE MEDIA"));
 	int drivePos = strUpper.Find(strPysclDrive, (nPos == -1) ? 0 : nPos);
+
 	if ((nPos == -1) || (drivePos == -1)) {
 		TRACE(L"NO Physical Drive NO!");
 		return FALSE;
@@ -703,6 +784,39 @@ void CDebugAssistDlg::CleanEnvironment()
 	_beginthreadex(NULL, 0, ThreadCloseFormatWnd, this, 0, NULL);
 }
 
+
+vector<HWND> GetProcessInfo(CString processName);
+
+void CDebugAssistDlg::CloseSpecificComWnd(CString comPort)
+{
+	HWND hWnd_Dlg = NULL;
+	WCHAR text[MAX_PATH] = { 0 };
+	CString titleKey;
+	vector<HWND> vecHWND;
+	vector<HWND>::const_iterator cit;
+
+	comPort = comPort.MakeUpper();
+	titleKey.Format(L"com:port=%s", comPort);
+	
+
+	vecHWND = GetProcessInfo(L"windbg.exe");
+	cit = vecHWND.begin();
+
+	for (; cit != vecHWND.end(); cit++)
+	{
+		hWnd_Dlg = *cit;
+		::GetWindowText(hWnd_Dlg, text, MAX_PATH);
+
+		CString strTitle(text);
+		if (strTitle.Find(titleKey) != -1)
+		{
+			::PostMessage(hWnd_Dlg, WM_CLOSE, 0, 0);
+			Sleep(1000);
+			break;
+		}
+	}
+}
+
 void CDebugAssistDlg::CloseFormatWnds()
 {
 	HWND hWnd_Dlg = NULL;
@@ -758,29 +872,51 @@ void CDebugAssistDlg::CloseFormatWnds()
 	
 }
 
+void CDebugAssistDlg::ComboboxToVector(CAutoComboBox &box, vector<CString> &vecItems)
+{
+	CString strItem;
+	UINT size = box.GetCount();
+	for (UINT i = 0; i < size; i++)
+	{
+		box.GetLBText(i, strItem);
+		vecItems.push_back(strItem);
+	}
+}
+void CDebugAssistDlg::ComboboxToSet(CAutoComboBox &box, set<CString> &setItems)
+{
+	CString strItem;
+	UINT size = box.GetCount();
+	for (UINT i = 0; i < size; i++)
+	{
+		box.GetLBText(i, strItem);
+		setItems.insert(strItem);
+	}
+}
+
+CCriticalSection g_cs;
 void CDebugAssistDlg::UpdateStatusProc()
 {
 	CString port;
 	CString lastPort;
 	vector<CString> vecComPorts;
-	UINT size = m_cbComPorts.GetCount();
-	for (UINT i = 0; i < size; i++)
-	{
-		m_cbComPorts.GetLBText(i, port);
-		vecComPorts.push_back(port);
-	}
-	m_cbComPorts.GetWindowTextW(lastPort);
+	CString lastDir;
 
+	g_cs.Lock();
+	m_cbComPorts.GetWindowTextW(lastPort);
+	m_cbDestinationDir.GetWindowTextW(lastDir);
+	ComboboxToSet(m_cbDestinationDir, m_setDriverDestDirs);
+	ComboboxToVector(m_cbComPorts, vecComPorts);
 
 	GetComList();
 	GetDiskList();
 
+	GetPhysicalDriveCount();
 	if (!GetDrivePhysicalNo())
 	{
 		m_btnFlash.EnableWindow(FALSE);
 	}
 
-	size = m_cbComPorts.GetCount();
+	UINT size = m_cbComPorts.GetCount();
 	int sel = 0;
 	vector<CString>::const_iterator cit;
 	for (UINT i = 0; i < size; i++)
@@ -806,7 +942,31 @@ void CDebugAssistDlg::UpdateStatusProc()
 		m_cbComPorts.SetCurSel(sel);
 	}
 	UpdateWindbgParameter();
-	UpdateDestDriverFilename();
+	int dft = UpdateDestDriverFilename();
+
+	m_cbDestinationDir.ResetContent();
+	// add valid paths to destination dir
+	set<CString>::const_iterator scit = m_setDriverDestDirs.begin();
+	for (; scit != m_setDriverDestDirs.end(); scit++)
+	{
+		if (IsFileDirExist(*scit))
+		{
+			m_cbDestinationDir.AddString(*scit);
+		}
+	}
+	if (!SetComboText(m_cbDestinationDir, lastDir))
+	{
+		if (m_cbDestinationDir.GetCount() > 0)
+		{
+			m_cbDestinationDir.SetCurSel((DFT_UEFI_FIT == dft) ? 0 : 1);
+		}
+	}
+
+	m_systemStatus.nDiskCount = m_cbDisks.GetCount() + 1;
+	m_systemStatus.nPortCount = m_cbComPorts.GetCount();
+
+	//PostMessage(UMSG_UPDATE_SYSTEM_STATUS, 0, 0);
+	g_cs.Unlock();
 }
 
 void CDebugAssistDlg::EnableCtrls(BOOL bEnable)
@@ -966,7 +1126,7 @@ void CDebugAssistDlg::OnBnClickedButtonBrowseSys()
 {
 	CFileDialog sysDialog(TRUE, TEXT("Driver Source File"),
 		NULL, OFN_OVERWRITEPROMPT | OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST,
-		TEXT("Driver Sys(*.sys)|*.sys|UEFI image(*.fit)|*.fit|Driver Inf(*.inf)|*.inf|All Files|*.*||"), this);
+		TEXT("Driver Sys(*.sys)|*.sys|UEFI Firmware|*.fit|Dynamic Link Lib(*.dll)|*.dll|UEFI image(*.fit)|*.fit|Driver Inf(*.inf)|*.inf|All Files|*.*||"), this);
 
 
 	if (sysDialog.DoModal() != IDOK) {
@@ -1040,15 +1200,40 @@ BOOL CDebugAssistDlg::GetFileTime(CString path, SYSTEMTIME & st) const
 }
 
 
+int CDebugAssistDlg::ToDriveFileType(CString & strFilename) const
+{
+	CString strFile = strFilename.MakeLower();
+	if (strFile.Find(L".sys") != -1)
+	{
+		return DFT_DRIVER_SYS;
+	}
+	else if (strFile.Find(L".fit") != -1)
+	{
+		return DFT_UEFI_FIT;
+	}
+	else if (strFile.Find(L".inf") != -1)
+	{
+		return DFT_INF;
+	}
+	else if (strFile.Find(L".dll") != -1)
+	{
+		return DFT_DLL;
+	}
+
+	return DFT_UNKNOWN;
+}
 
 
-void CDebugAssistDlg::UpdateDestDriverFilename()
+
+int CDebugAssistDlg::UpdateDestDriverFilename()
 {
 	CString srcPath;
 	CString srcFilename;
 	m_cbDriverSourceFile.GetWindowTextW(srcPath);
 	srcFilename = RetriveFilename(srcPath);
 	m_editDstFilename.SetWindowTextW(srcFilename);
+
+	return ToDriveFileType(srcFilename);
 }
 
 void CDebugAssistDlg::OnBnClickedButtonReplace()
@@ -1080,6 +1265,11 @@ void CDebugAssistDlg::OnBnClickedButtonReplace()
 	if (srcPath.IsEmpty() || destPath.IsEmpty())
 	{
 		MessageBox(TEXT("Empty File Path(s)!"), TEXT("Error"), MB_ICONSTOP);
+		return;
+	}
+	if (!IsFileDirExist(srcPath))
+	{
+		MessageBox(TEXT("Source File Not Exist!"), TEXT("Error"), MB_ICONSTOP);
 		return;
 	}
 
@@ -1227,12 +1417,20 @@ int CDebugAssistDlg::RemoveUefiDrive()
 			CString debugInfo;
 
 			pnpvietotype = PNP_VetoDevice;
-			cr = CM_Request_Device_Eject(DeviceInfoData.DevInst,
-				&pnpvietotype,
-				NULL,
-				0,
-				0
-			);
+			for (int j = 0; j < 3; j++)
+			{
+				cr = CM_Request_Device_Eject(DeviceInfoData.DevInst,
+					&pnpvietotype,
+					NULL,
+					0,
+					0
+				);
+				if (CR_SUCCESS == cr) {
+					break;
+				}
+				Sleep(500);
+			}
+		
 			if (CR_SUCCESS == cr)
 			{
 				debugInfo.Format(L"Device: %s(%s) Ejected!\r\n", friendly_name, hwidBuf);
@@ -1356,9 +1554,15 @@ afx_msg LRESULT CDebugAssistDlg::OnUmsgComSelChange(WPARAM wParam, LPARAM lParam
 	}
 	else if (ctrlID == m_cbDriverSourceFile.GetDlgCtrlID())
 	{
-		UpdateDestDriverFilename();
+		int dft = UpdateDestDriverFilename();
 		ShowFileInfo(m_cbDriverSourceFile);
-		ShowFileInfo(m_cbDestinationDir);
+		if (DFT_UEFI_FIT == dft)
+		{
+			if (m_cbDestinationDir.GetCount() > 0)
+			{
+				m_cbDestinationDir.SetCurSel(0);
+			}
+		}
 	}
 	else if ((m_cbFwFitMergedPaths.GetDlgCtrlID() == ctrlID))
 	{
@@ -1381,7 +1585,7 @@ void CDebugAssistDlg::OnBnClickedButtonBrowseFwfitmerged()
 {
 	CFileDialog ffuDialog(TRUE, TEXT("Uboot File for IOT"),
 		NULL, OFN_OVERWRITEPROMPT | OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST,
-		TEXT("firmware_fit.merged|*.merged|"), this);
+		TEXT("firmware_fit.merged|*.merged|All|*.*|"), this);
 
 	//wchar_t buffer[MAX_PATH] = { 0 };
 	//GetModuleFileName(NULL, buffer, MAX_PATH);
@@ -1424,3 +1628,29 @@ void CDebugAssistDlg::OnBnClickedButtonDdFlash()
 	para.bRet = CProcessInterface::CreateCmdWindow(&para);
 }
 
+
+
+void CDebugAssistDlg::OnStnClickedStaticSystemStatus()
+{
+
+}
+
+
+afx_msg LRESULT CDebugAssistDlg::OnUmsgUpdateSystemStatus(WPARAM wParam, LPARAM lParam)
+{
+	CString info;
+	info.Format(TEXT("[Status] PhysicalDrives: %d COM Ports: %d"), m_systemStatus.nDriveCount,/*
+		m_systemStatus.nDiskCount,*/ m_systemStatus.nPortCount);
+	info.AppendFormat(L" Up:%s Down:%s", SYSINFO.GetUpTraf(), SYSINFO.GetDownTraf());
+	info.AppendFormat(L" CPU:%d%% Memory:%d%%", SYSINFO.m_cpu_usage, SYSINFO.m_memory_usage);
+
+	SetDlgItemText(IDC_STATIC_SYSTEM_STATUS, info);
+	return 0;
+}
+
+
+void CDebugAssistDlg::OnTimer(UINT_PTR nIDEvent)
+{
+
+	CDialogEx::OnTimer(nIDEvent);
+}

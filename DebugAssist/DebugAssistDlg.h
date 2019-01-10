@@ -13,6 +13,16 @@ using std::set;
 using std::map;
 
 
+#define UMSG_UPDATE_SYSTEM_STATUS	(WM_USER + 0x2348)
+
+enum DRIVER_FILE_TYPE{
+	DFT_UNKNOWN = 0,
+	DFT_DRIVER_SYS = 1,
+	DFT_UEFI_FIT,
+	DFT_DLL,
+	DFT_INF,
+};
+
 struct DISK_T{
 
 	DISK_T(CString r);
@@ -24,6 +34,32 @@ struct DISK_T{
 	DWORD MaxCLength;
 	DWORD FileSysFlag;
 
+};
+
+
+struct SYSTEM_STATUS {
+	SYSTEM_STATUS() {
+		nShowItem = SYSST_DEFAULT;
+		Reset();
+	}
+	enum {
+		SYSST_PORTCNT = 0x01,
+		SYSST_DISKCNT = 0x02,
+		SYSST_DRVCNT = 0x04,
+		SYSST_DEFAULT = SYSST_PORTCNT | SYSST_DISKCNT | SYSST_DRVCNT,
+	};
+
+
+	void Reset() {
+		nPortCount = 0;
+		nDiskCount = 0;
+		nDriveCount = 0;
+	}
+	int nPortCount;
+	int nDiskCount;
+	int nDriveCount;
+
+	int nShowItem;
 };
 
 
@@ -50,6 +86,8 @@ public:
 
 // Implementation
 private:
+	void CloseSpecificComWnd(CString comPort);
+	void GetPhysicalDriveCount();
 	BOOL GetFileTime(CString path, SYSTEMTIME &st) const;
 	void AppendDebug(WPARAM wParam, LPARAM lParam);
 	void AppendDebug(CString text);
@@ -58,7 +96,8 @@ private:
 	int GetComList();
 	void GetDiskList();
 	BOOL GetDrivePhysicalNo();
-	void UpdateDestDriverFilename();
+	int ToDriveFileType(CString &strFilename) const;
+	int UpdateDestDriverFilename();
 	void EnableBcdDebug(BOOL bEnable);
 	void GetAppDataConfigDir();
 	void AddFfuPath(CString path);
@@ -71,12 +110,16 @@ private:
 	void SaveWindbgParameter();
 	void UpdateWindbgParameter();
 	void LoadComboStrings(CAutoComboBox &box, LPCWSTR key);
+	void LoadComboStrings(set<CString> &setItems, LPCWSTR key);
 	void SaveComboStrings(CAutoComboBox &box, LPCWSTR key);
+	void SaveComboStrings(set<CString> &setItems, LPCWSTR key);
 	BOOL IsFileDirExist(CString path) const;
 	CString RetriveFilename(CString path);
 	BOOL SetComboText(CAutoComboBox &box, CString item);
 	BOOL SetComboLastSelected(CAutoComboBox &box);
 	void ShowFileInfo(CAutoComboBox &box);
+	void ComboboxToSet(CAutoComboBox &box, set<CString> &setItems);
+	void ComboboxToVector(CAutoComboBox &box, vector<CString> &vecItems);
 private:
 	int m_nPhysicalDriveNo;
 	CString m_strAppDataConfigDir;
@@ -84,6 +127,8 @@ private:
 	vector<DISK_T> m_vecDisks;
 	vector<CString> m_vecDebugInfoLines;
 	map<CString, CString> m_mapWindbgParameter;
+	set<CString> m_setDriverDestDirs;
+	SYSTEM_STATUS m_systemStatus;
 	
 protected:
 	void UpdateStatus();
@@ -132,4 +177,9 @@ public:
 	CAutoComboBox m_cbFwFitMergedPaths;
 	afx_msg void OnBnClickedButtonBrowseFwfitmerged();
 	afx_msg void OnBnClickedButtonDdFlash();
+	afx_msg void OnStnClickedStaticSystemStatus();
+protected:
+	afx_msg LRESULT OnUmsgUpdateSystemStatus(WPARAM wParam, LPARAM lParam);
+public:
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 };

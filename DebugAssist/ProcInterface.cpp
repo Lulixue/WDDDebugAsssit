@@ -16,9 +16,17 @@
 
 extern HWND g_hwndDebug;
 const CString CProcessInterface::CMD_ECHO_FILE = TEXT("tmp\\result.echo");
-CString CProcessInterface::AddProcessPrefix(CString strCmd)
+CString CProcessInterface::AddProcessPrefix(CString strCmd, int type)
 {
-	CString strRetCmd = TEXT("cmd.exe /c \"");
+	CString strRetCmd;
+	
+	if (CMD_POWERSHELL & type)
+	{
+		strRetCmd = TEXT("powershell \"");
+	}
+	else {
+		strRetCmd = TEXT("cmd.exe /c \"");
+	}
 
 	strRetCmd += strCmd;
 	strRetCmd += TEXT("\"");
@@ -196,7 +204,7 @@ BOOL CProcessInterface::_CreateMyProcess(P_PARAM_T para)
 
 	SendDebugMessage(para->strCmd);
 	CString strEchoFile;
-	para->strCmd = AddProcessPrefix(para->strCmd);
+	para->strCmd = AddProcessPrefix(para->strCmd, para->nType);
 	if (para->nType & CMD_READ_BACK_FILE) {
 		strEchoFile.Format(TEXT("%s%d"), CMD_ECHO_FILE, CTime::GetCurrentTime());
 		para->strCmd.AppendFormat(TEXT(" > %s"), strEchoFile); 

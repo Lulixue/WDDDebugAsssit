@@ -36,6 +36,9 @@
     <ClInclude Include="ProcInterface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CSystemInfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DebugAssist.cpp">
@@ -52,6 +55,9 @@
     </ClCompile>
     <ClCompile Include="ProcInterface.cpp">
       <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CSystemInfo.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

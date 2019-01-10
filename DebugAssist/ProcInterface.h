@@ -20,7 +20,6 @@ enum
 	CMD_ABSOLUTE_INFINITE = 0x10,
 	CMD_NOADD_SERIALNO_LINE = 0x20,
 	CMD_READ_BACK_FILE = 0x40,
-	CMD_DIR_ADB = 0x80,
 	CMD_BAT_SCRIPT = 0x100,
 	CMD_OPEN = 0x200,
 	CMD_NO_OUTPUT_RETURN = 0x400,
@@ -46,7 +45,7 @@ public:
 	static void Reset(CString tmpDir);
 	static BOOL GetFileContents(CString path, CString &contents);
 	static CString CleanString(CString str);
-	static CString AddProcessPrefix(CString strCmd);
+	static CString AddProcessPrefix(CString strCmd, int type = 0);
 	static BOOL CreateMyProcess(P_PARAM_T para);
 	static BOOL _CreateMyProcess(P_PARAM_T para);
 	static BOOL CreateCmdWindow(P_PARAM_T para);
