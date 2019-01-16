@@ -182,4 +182,6 @@ protected:
 	afx_msg LRESULT OnUmsgUpdateSystemStatus(WPARAM wParam, LPARAM lParam);
 public:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
+protected:
+    afx_msg LRESULT OnUmsgUpdateDestDriverDir(WPARAM wParam, LPARAM lParam);
 };

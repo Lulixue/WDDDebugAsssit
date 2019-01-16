@@ -39,6 +39,9 @@
     <ClInclude Include="CSystemInfo.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CDialogSelectDriverDir.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DebugAssist.cpp">
@@ -57,6 +60,9 @@
       <Filter>Header Files</Filter>
     </ClCompile>
     <ClCompile Include="CSystemInfo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CDialogSelectDriverDir.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

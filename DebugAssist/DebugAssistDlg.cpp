@@ -11,6 +11,7 @@
 #include <DBT.h>
 #include <algorithm>
 #include "CSystemInfo.h"
+#include "CDialogSelectDriverDir.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -108,6 +109,7 @@ BEGIN_MESSAGE_MAP(CDebugAssistDlg, CDialogEx)
 	ON_STN_CLICKED(IDC_STATIC_SYSTEM_STATUS, &CDebugAssistDlg::OnStnClickedStaticSystemStatus)
 	ON_MESSAGE(UMSG_UPDATE_SYSTEM_STATUS, &CDebugAssistDlg::OnUmsgUpdateSystemStatus)
 	ON_WM_TIMER()
+    ON_MESSAGE(UMSG_UPDATE_DEST_DRIVER_DIR, &CDebugAssistDlg::OnUmsgUpdateDestDriverDir)
 END_MESSAGE_MAP()
 
 
@@ -1143,24 +1145,9 @@ void CDebugAssistDlg::OnBnClickedButtonBrowseSys()
 void CDebugAssistDlg::OnBnClickedButtonBrowseDestDir()
 {
 
-	BROWSEINFO bifolder;
-	wchar_t FileName[MAX_PATH];
-	ZeroMemory(&bifolder, sizeof(BROWSEINFO));
-	bifolder.hwndOwner = g_hwndDebug;				// 拥有者句柄
-	bifolder.pszDisplayName = FileName;		// 存放目录路径缓冲区
-	bifolder.lpszTitle = TEXT("Select Driver Directory");	// 标题
-	bifolder.ulFlags = BIF_NEWDIALOGSTYLE | BIF_EDITBOX; // 新的样式,带编辑框
+    CDialogSelectDriverDir dlgSelectDir(L"H:\\");
+    dlgSelectDir.DoModal();
 
-	LPITEMIDLIST idl = SHBrowseForFolder(&bifolder);
-	if (idl == NULL)
-	{
-		return;
-	}
-
-	SHGetPathFromIDList(idl, FileName);
-
-	AddComboString(m_cbDestinationDir, FileName);
-	SetComboText(m_cbDestinationDir, FileName);
 }
 
 time_t FileTimeToTime_t(const FILETIME &ft)
@@ -1583,27 +1570,28 @@ afx_msg LRESULT CDebugAssistDlg::OnUmsgComSelChange(WPARAM wParam, LPARAM lParam
 
 void CDebugAssistDlg::OnBnClickedButtonBrowseFwfitmerged()
 {
-	CFileDialog ffuDialog(TRUE, TEXT("Uboot File for IOT"),
-		NULL, OFN_OVERWRITEPROMPT | OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST,
-		TEXT("firmware_fit.merged|*.merged|All|*.*|"), this);
 
-	//wchar_t buffer[MAX_PATH] = { 0 };
-	//GetModuleFileName(NULL, buffer, MAX_PATH);
-	//CString strCurDir = buffer;
-	//int pos = strCurDir.ReverseFind(TEXT('\\'));
-	//strCurDir = strCurDir.Mid(0, pos);
-	//strCurDir += TEXT("\\apks");
+    CFileDialog ffuDialog(TRUE, TEXT("Uboot File for IOT"),
+        NULL, OFN_OVERWRITEPROMPT | OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST,
+        TEXT("firmware_fit.merged|*.merged|All|*.*|"), this);
 
-	//fileDlgApk.m_ofn.lpstrInitialDir = strCurDir;
+    //wchar_t buffer[MAX_PATH] = { 0 };
+    //GetModuleFileName(NULL, buffer, MAX_PATH);
+    //CString strCurDir = buffer;
+    //int pos = strCurDir.ReverseFind(TEXT('\\'));
+    //strCurDir = strCurDir.Mid(0, pos);
+    //strCurDir += TEXT("\\apks");
 
-	if (ffuDialog.DoModal() != IDOK) {
-		return;
-	}
+    //fileDlgApk.m_ofn.lpstrInitialDir = strCurDir;
 
-	CString strPath = ffuDialog.GetPathName();
+    if (ffuDialog.DoModal() != IDOK) {
+        return;
+    }
 
-	AddComboString(m_cbFwFitMergedPaths, strPath);
-	SetComboText(m_cbFwFitMergedPaths, strPath);
+    CString strPath = ffuDialog.GetPathName();
+
+    AddComboString(m_cbFwFitMergedPaths, strPath);
+    SetComboText(m_cbFwFitMergedPaths, strPath);
 }
 
 
@@ -1653,4 +1641,15 @@ void CDebugAssistDlg::OnTimer(UINT_PTR nIDEvent)
 {
 
 	CDialogEx::OnTimer(nIDEvent);
+}
+
+
+afx_msg LRESULT CDebugAssistDlg::OnUmsgUpdateDestDriverDir(WPARAM wParam, LPARAM lParam)
+{
+    CString *strPath = (CString *)wParam;
+
+    AddComboString(m_cbDestinationDir, *strPath);
+    SetComboText(m_cbDestinationDir, *strPath);
+    delete strPath;
+    return 0;
 }
