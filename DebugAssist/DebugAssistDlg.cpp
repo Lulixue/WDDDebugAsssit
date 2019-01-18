@@ -1489,7 +1489,10 @@ void CDebugAssistDlg::OnBnClickedButtonBackstageAdmin()
 	para.nType = CMD_OPEN;
 	para.strCmd.Format(TEXT("http://%s:%s"), strIp, strPort);
 
+    //WinExec((LPCSTR)para.strCmd.GetBuffer(), SW_SHOW);
+    //para.strCmd.ReleaseBuffer();
 	para.bRet = CProcessInterface::CreateCmdWindow(&para);
+
 }
 
 

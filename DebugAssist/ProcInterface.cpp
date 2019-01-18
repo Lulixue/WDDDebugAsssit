@@ -96,7 +96,7 @@ BOOL CProcessInterface::CreateCmdWindow(P_PARAM_T para)
 	}
 	else if (para->nType & CMD_OPEN)
 	{
-		ShellExecute(NULL, L"Open", para->strCmd, NULL, NULL, SW_SHOW);
+		ShellExecute(NULL, L"open", para->strCmd, NULL, NULL, SW_SHOW);
 	}
 	else if (para->nType & CMD_POWERSHELL)
 	{
