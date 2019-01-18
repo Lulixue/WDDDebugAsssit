@@ -15,10 +15,12 @@ BEGIN_MESSAGE_MAP(CAutoComboBox, CComboBox)
     ON_WM_MOUSEMOVE()
 //    ON_WM_PAINT()
 ON_MESSAGE(UMSG_LISTBOX_MOUSE_POSITION, &CAutoComboBox::OnUmsgListboxMousePosition)
+ON_WM_CREATE()
+ON_WM_GETMINMAXINFO()
 END_MESSAGE_MAP()
 
-WNDPROC CAutoComboBox::m_oldListWndProc = NULL;
-CMap<HWND, HWND, HWND, HWND> CAutoComboBox::m_mapWnd;
+WNDPROC CAutoComboBox::s_oldListWndProc = NULL;
+CMap<HWND, HWND, HWND, HWND> CAutoComboBox::s_mapComboWnd;
 // CAutoComboBox 消息处理程序
 void CAutoComboBox::OnCbnDropdown()
 {
@@ -94,13 +96,13 @@ LRESULT CALLBACK HookListboxWndProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
         xPos = LOWORD(lParam);
         yPos = HIWORD(lParam);
         HWND relWnd;
-        CAutoComboBox::m_mapWnd.Lookup(hWnd, relWnd);
+        CAutoComboBox::s_mapComboWnd.Lookup(hWnd, relWnd);
         ::SendMessage(relWnd, UMSG_LISTBOX_MOUSE_POSITION, xPos, yPos);//发送鼠标位置给列表窗口
     }
     else if (message == WM_LBUTTONDOWN)
     {
         HWND relWnd;
-        CAutoComboBox::m_mapWnd.Lookup(hWnd, relWnd);
+        CAutoComboBox::s_mapComboWnd.Lookup(hWnd, relWnd);
         //消息类型我是直接以数字发送，觉得看着不舒服的，可自行定义
         //如#define WM_MOUSEPOSITION WM_USER+100
         LRESULT result = ::SendMessage(relWnd, UMSG_LISTBOX_MOUSE_POSITION, (WPARAM)-1, 0);//第三参数-1表明鼠标左键按下
@@ -108,7 +110,7 @@ LRESULT CALLBACK HookListboxWndProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
             return 0;//返回0,不让默认消息处理函数处理WM_LBUTTONDOWN
     }
     //调用列表框之前的默认消息处理函数
-    return ::CallWindowProc(CAutoComboBox::m_oldListWndProc, hWnd, message, wParam, lParam);
+    return ::CallWindowProc(CAutoComboBox::s_oldListWndProc, hWnd, message, wParam, lParam);
 }
 
 void CAutoComboBox::PreSubclassWindow()
@@ -119,9 +121,10 @@ void CAutoComboBox::PreSubclassWindow()
 
     COMBOBOXINFO cbi;
     cbi.cbSize = sizeof(COMBOBOXINFO);
-    ::GetComboBoxInfo(this->m_hWnd, &cbi);//获取组合框信息
-        //替换列表框消息处理函数
-    m_oldListWndProc = (WNDPROC)::SetWindowLongPtr(cbi.hwndList, GWLP_WNDPROC, reinterpret_cast<LONG_PTR> (HookListboxWndProc));
+    ::GetComboBoxInfo(this->m_hWnd, &cbi);  //获取组合框信息
+
+    //替换列表框消息处理函数
+    s_oldListWndProc = (WNDPROC)::SetWindowLongPtr(cbi.hwndList, GWLP_WNDPROC, reinterpret_cast<LONG_PTR> (HookListboxWndProc));
     LONG_PTR style = GetWindowLongPtr(cbi.hwndCombo, GWL_STYLE);
     if (style & CBS_DROPDOWNLIST)
     {
@@ -132,22 +135,12 @@ void CAutoComboBox::PreSubclassWindow()
     //相互关联，到时可以依据两个中的任一窗口句柄，查询到另一个
     //我想，对于CMap类一定会有解决此问题的方法，但我现在实在不想深入了解 
     //只能给它互相关联，不知道是不是“主流”方法。
-    m_mapWnd.SetAt(cbi.hwndList, this->m_hWnd);
-    m_mapWnd.SetAt(this->m_hWnd, cbi.hwndList);
+    s_mapComboWnd.SetAt(cbi.hwndList, this->m_hWnd);
+    s_mapComboWnd.SetAt(this->m_hWnd, cbi.hwndList);
 
-    GetClientRect(m_comRect);
-    //CString str;
-    //str.Format("%d,%d,%d,%d", m_comRect.left, m_comRect.top, m_comRect.right, m_comRect.bottom);
-    RECT rect;//编辑框大小
-    ::GetClientRect(cbi.hwndItem, &rect);
-    //计算按钮大小
-    m_arrowRect.left = rect.right + 4;
-    m_arrowRect.top = 3;
-    m_arrowRect.right = m_comRect.right - 3;
-    m_arrowRect.bottom = m_comRect.bottom - 1;
-    //设置高度
-    //SetItemHeight(-1, 20);
-    //SetItemHeight(0, 25);
+
+    SendMessage(CB_SETITEMHEIGHT, (WPARAM)-1, (LPARAM)BOX_HEIGHT);   //改变控件本身的高度
+
 }
 
 
@@ -161,8 +154,6 @@ void CAutoComboBox::OnLButtonDown(UINT nFlags, CPoint point)
 void CAutoComboBox::OnMouseHover(UINT nFlags, CPoint point)
 {
     // TODO: Add your message handler code here and/or call default
-    m_MouseHover = TRUE;
-    TRACE("OnMouseHover: %d\r\n", m_MouseHover);
     CComboBox::OnMouseHover(nFlags, point);
 }
 
@@ -173,66 +164,60 @@ void CAutoComboBox::OnMouseMove(UINT nFlags, CPoint point)
     CComboBox::OnMouseMove(nFlags, point);
 }
 
-#define DEL_BUTTON_MOUSE_ON_COLOR   (RGB(231, 17, 35))      // 红色
-#define ITEM_SELECT_TEXT_COLOR      (RGB(255, 255, 255))    // 白色
-#define ITEM_UNSELECT_TEXT_COLOR    (RGB(0, 0, 0))          // 黑色
-#define ITEM_SELECT_BK_COLOR        (RGB(0, 120, 215))       // 蓝色
-#define ITEM_UNSELECT_BK_COLOR      (RGB(255, 255, 255))    // 白色
-
 void CAutoComboBox::DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct)
 {
 
     CDC dc;
     dc.Attach(lpDrawItemStruct->hDC);//组合框DC
     CRect itemRect(lpDrawItemStruct->rcItem);//项区域
-    int nSate = lpDrawItemStruct->itemState;//项状态
+    int nState = lpDrawItemStruct->itemState;//项状态
     int nIndex = lpDrawItemStruct->itemID;//项索引
     int nAction = lpDrawItemStruct->itemAction;
 
+    //TRACE("Index: %d(DelBtn:%d), state: %04X, Action: %04X\n", nIndex, m_bMouseHoverOnDelBtn, nState, nAction);
+  
     if (nIndex != -1)
     {
-        dc.SetBkMode(TRANSPARENT);
-        if (nSate & ODS_SELECTED)//如果选中该项
+      
+        if (nState & ODS_SELECTED)//如果选中该项
         {
             CPen pen;
 
             //计算位置
-            m_delRect.left = itemRect.right - DEL_RECT_WIDTH;
-            m_delRect.top = itemRect.top;
-            m_delRect.right = itemRect.right;
-            m_delRect.bottom = itemRect.bottom;
-            if (nAction != ODA_DRAWENTIRE)
+            m_rcDelButton.left = itemRect.right - DEL_RECT_WIDTH;
+            m_rcDelButton.top = itemRect.top;
+            m_rcDelButton.right = itemRect.right;
+            m_rcDelButton.bottom = itemRect.bottom;
+            //TRACE("DelRect:(%d,%d,%d,%d)\n", RECT_PARAM(m_rcDelButton));
+            //TRACE("ItemRect:(%d,%d,%d,%d)\n", RECT_PARAM(itemRect));
+
+            dc.FillSolidRect(&itemRect, ITEM_SELECT_BK_COLOR);
+            //if ((nAction != ODA_DRAWENTIRE) || (GetCount() == 1))
+            if (TRUE)
             {
-                if (m_DelButtonState == 1) //鼠标停留 
+                if (m_bMouseHoverOnDelBtn) //鼠标停留 
                 {
-                    dc.FillSolidRect(&m_delRect, DEL_BUTTON_MOUSE_ON_COLOR);
+                    // 填充红色背影
+                    dc.FillSolidRect(&m_rcDelButton, DEL_BUTTON_MOUSE_ON_COLOR);
                     pen.CreatePen(1, 2, ITEM_SELECT_TEXT_COLOR);
                     itemRect.right -= DEL_RECT_WIDTH;
-                }
-                else
-                {
-                    dc.FillSolidRect(&m_delRect, ITEM_SELECT_BK_COLOR);
-                    pen.CreatePen(1, 2, ITEM_SELECT_TEXT_COLOR);
-                }
-                dc.FillSolidRect(&itemRect, ITEM_SELECT_BK_COLOR);
-                // 画X按钮
-                m_delRect.top += 5;
-                m_delRect.right -= 5;
-                m_delRect.bottom -= 5;
-                m_delRect.left += 5;
-                CRect temDelRect = m_delRect;
-                temDelRect.DeflateRect(2, 2, 2, 2);
-                dc.SelectObject(&pen);
+                    // 画白色X按钮
+                    CRect temDelRect = m_rcDelButton;
+                    temDelRect.top += 5;
+                    temDelRect.right -= 5;
+                    temDelRect.bottom -= 5;
+                    temDelRect.left += 5;
+                    //temDelRect.DeflateRect(2, 2, 2, 2);
+                    dc.SelectObject(&pen);
 
-                dc.MoveTo(temDelRect.left, temDelRect.top);
-                dc.LineTo(temDelRect.right, temDelRect.bottom);
-                dc.MoveTo(temDelRect.right, temDelRect.top);
-                dc.LineTo(temDelRect.left, temDelRect.bottom);
-                dc.Draw3dRect(itemRect, RGB(0, 0, 240), RGB(0, 0, 200));//给选中项画边框
-            }
-            else
-            {
-                dc.FillSolidRect(&itemRect, ITEM_SELECT_BK_COLOR);
+                    //TRACE("temDelRect:(%d,%d,%d,%d)\n", RECT_PARAM(temDelRect));
+                    dc.MoveTo(temDelRect.left, temDelRect.top);
+                    dc.LineTo(temDelRect.right, temDelRect.bottom);
+                    dc.MoveTo(temDelRect.right, temDelRect.top);
+                    dc.LineTo(temDelRect.left, temDelRect.bottom);
+                }
+               
+                //dc.Draw3dRect(itemRect, RGB(0, 0, 240), RGB(0, 0, 200));//给选中项画边框
             }
             dc.SetTextColor(ITEM_SELECT_TEXT_COLOR);
         }
@@ -241,13 +226,15 @@ void CAutoComboBox::DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct)
             dc.SetTextColor(ITEM_UNSELECT_TEXT_COLOR);
             dc.FillSolidRect(itemRect, ITEM_UNSELECT_BK_COLOR);
         }
-
+        dc.SetBkMode(TRANSPARENT);
+        if (nState == (ES_WANTRETURN | EN_CHANGE)) // 0x1300
+        {
+        }
         CString str;
         GetLBText(nIndex, str);
         itemRect.DeflateRect(2, 0, 0, 0);
 
         dc.DrawText(str, itemRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);//显示文本
-
     }
     
     dc.Detach();
@@ -334,36 +321,101 @@ int CAutoComboBox::CompareItem(LPCOMPAREITEMSTRUCT lpCompareItemStruct)
 BOOL CAutoComboBox::PreTranslateMessage(MSG* pMsg)
 {
     // TODO: Add your specialized code here and/or call the base class
+    if (pMsg->message == WM_CREATE)
+    {
+       
+    }
     return CComboBox::PreTranslateMessage(pMsg);
 }
 
 
 afx_msg LRESULT CAutoComboBox::OnUmsgListboxMousePosition(WPARAM wParam, LPARAM lParam)
 {
-    if (m_DelButtonState == 1 && wParam == -1)//如果是单击消息，并且鼠标当前停留在下拉按钮里
+    if (m_bMouseHoverOnDelBtn && (wParam == -1))//如果是单击消息，并且鼠标当前停留在下拉按钮里
     {
         this->DeleteString(GetCurSel());
         this->SelectString(-1, m_strLastSelected);
-        Invalidate();
         return 1;
     }
     CPoint point((int)wParam, (int)lParam);
-    int result = m_delRect.PtInRect(point);
-    if (result && m_DelButtonState == 0)//如果鼠标在组合框内，并且是初次鼠标进入
+    int result = m_rcDelButton.PtInRect(point);
+    if (result && !m_bMouseHoverOnDelBtn)//如果鼠标在组合框内，并且是初次鼠标进入
     {
-        m_DelButtonState = 1;
+        m_bMouseHoverOnDelBtn = TRUE;
         HWND listWnd;
-        m_mapWnd.Lookup(this->m_hWnd, listWnd);
-        ::InvalidateRect(listWnd, m_delRect, true);
+        s_mapComboWnd.Lookup(this->m_hWnd, listWnd);
+        ::InvalidateRect(listWnd, m_rcDelButton, true);
     }
-    else if (result == 0 && m_DelButtonState != 0)
+    else if ((result == 0) && m_bMouseHoverOnDelBtn)
     {
-        m_DelButtonState = 0;
+        m_bMouseHoverOnDelBtn = FALSE;
         HWND listWnd;
-        m_mapWnd.Lookup(this->m_hWnd, listWnd);
-        ::InvalidateRect(listWnd, m_delRect, true);
+        s_mapComboWnd.Lookup(this->m_hWnd, listWnd);
+        ::InvalidateRect(listWnd, m_rcDelButton, true);
     }
-    TRACE("DelButtonState: %d\n", m_DelButtonState);
-    TRACE("DelRect: %d, %d, Point: %d\n", m_delRect.left, m_delRect.right, point.x);
+    //TRACE("DelButtonState: %d\n", m_bMouseHoverOnDelBtn);
+    //TRACE("DelRect: %d, %d, Point: %d\n", m_rcDelButton.left, m_rcDelButton.right, point.x);
     return 0;
+}
+
+
+int CAutoComboBox::OnCreate(LPCREATESTRUCT lpCreateStruct)
+{
+    if (CComboBox::OnCreate(lpCreateStruct) == -1)
+        return -1;
+    RECT rc;
+    GetWindowRect(&rc);
+
+    CRect newPos(rc);
+    newPos.bottom = newPos.top + BOX_HEIGHT;
+    TRACE("OrgPos: %d,%d,%d,%d\n", RECT_PARAM(rc));
+    TRACE("newPos: %d,%d,%d,%d\n", RECT_PARAM(newPos));
+    ::SetWindowPos(m_hWnd, GetParent()->GetSafeHwnd(), newPos.left, newPos.top, newPos.Width(), newPos.Height(),
+        SWP_SHOWWINDOW);
+
+    return 0;
+}
+
+
+BOOL CAutoComboBox::Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID)
+{
+    // TODO: Add your specialized code here and/or call the base class
+
+    CRect newPos(rect);
+    TRACE("Height: %d\n", rect.bottom - rect.top);
+    newPos.bottom = newPos.top + BOX_HEIGHT;
+
+    SetWindowPos(pParentWnd, newPos.left, newPos.top, newPos.Width(), newPos.Height(),
+        SWP_SHOWWINDOW);
+    return CComboBox::Create(dwStyle, rect, pParentWnd, nID);
+}
+
+
+BOOL CAutoComboBox::CreateEx(DWORD dwExStyle, LPCTSTR lpszClassName, LPCTSTR lpszWindowName, DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID, LPVOID lpParam)
+{
+    // TODO: Add your specialized code here and/or call the base class
+
+    CRect newPos(rect);
+    TRACE("Height: %d\n", rect.bottom - rect.top);
+    newPos.bottom = newPos.top + BOX_HEIGHT;
+
+    SetWindowPos(pParentWnd, newPos.left, newPos.top, newPos.Width(), newPos.Height(),
+        SWP_SHOWWINDOW);
+    return CComboBox::CreateEx(dwExStyle, lpszClassName, lpszWindowName, dwStyle, rect, pParentWnd, nID, lpParam);
+}
+
+
+void CAutoComboBox::MeasureItem(LPMEASUREITEMSTRUCT /*lpMeasureItemStruct*/)
+{
+
+    // TODO:  Add your code to determine the size of specified item
+}
+
+
+void CAutoComboBox::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
+{
+    // TODO: Add your message handler code here and/or call default
+
+    lpMMI->ptMaxSize.y = BOX_HEIGHT;
+    CComboBox::OnGetMinMaxInfo(lpMMI);
 }

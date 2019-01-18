@@ -110,6 +110,7 @@ BEGIN_MESSAGE_MAP(CDebugAssistDlg, CDialogEx)
 	ON_MESSAGE(UMSG_UPDATE_SYSTEM_STATUS, &CDebugAssistDlg::OnUmsgUpdateSystemStatus)
 	ON_WM_TIMER()
     ON_MESSAGE(UMSG_UPDATE_DEST_DRIVER_DIR, &CDebugAssistDlg::OnUmsgUpdateDestDriverDir)
+    ON_WM_GETMINMAXINFO()
 END_MESSAGE_MAP()
 
 
@@ -1655,4 +1656,12 @@ afx_msg LRESULT CDebugAssistDlg::OnUmsgUpdateDestDriverDir(WPARAM wParam, LPARAM
     SetComboText(m_cbDestinationDir, *strPath);
     delete strPath;
     return 0;
+}
+
+
+void CDebugAssistDlg::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
+{
+    // TODO: Add your message handler code here and/or call default
+
+    CDialogEx::OnGetMinMaxInfo(lpMMI);
 }
