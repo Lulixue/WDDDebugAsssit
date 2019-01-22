@@ -13,13 +13,20 @@ BEGIN_MESSAGE_MAP(CAutoComboBox, CComboBox)
     ON_WM_LBUTTONDOWN()
     ON_WM_MOUSEHOVER()
     ON_WM_MOUSEMOVE()
-//    ON_WM_PAINT()
-ON_MESSAGE(UMSG_LISTBOX_MOUSE_POSITION, &CAutoComboBox::OnUmsgListboxMousePosition)
-ON_WM_CREATE()
-ON_WM_GETMINMAXINFO()
+    ON_MESSAGE(UMSG_LISTBOX_MOUSE_POSITION, &CAutoComboBox::OnUmsgListboxMousePosition)
+    ON_WM_CREATE()
+    ON_WM_GETMINMAXINFO()
+    ON_WM_PAINT()
+    ON_WM_MOUSELEAVE()
+    ON_WM_SETFOCUS()
+    ON_WM_KILLFOCUS()
+    ON_WM_TIMER()
+    ON_MESSAGE(UMSG_EDITBOX_MOUSE_ACTION, &CAutoComboBox::OnUmsgEditboxMouseAction)
 END_MESSAGE_MAP()
 
 WNDPROC CAutoComboBox::s_oldListWndProc = NULL;
+WNDPROC CAutoComboBox::s_oldEditWndProc = NULL;
+HWND CAutoComboBox::s_hwndComboBox;
 CMap<HWND, HWND, HWND, HWND> CAutoComboBox::s_mapComboWnd;
 // CAutoComboBox 消息处理程序
 void CAutoComboBox::OnCbnDropdown()
@@ -112,6 +119,25 @@ LRESULT CALLBACK HookListboxWndProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
     //调用列表框之前的默认消息处理函数
     return ::CallWindowProc(CAutoComboBox::s_oldListWndProc, hWnd, message, wParam, lParam);
 }
+LRESULT CALLBACK HookEditBoxWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    //TRACE("HookEditBoxWndProc, Msg: %d\n", message);
+    switch (message)
+    {
+    case WM_SETFOCUS:
+    case WM_KILLFOCUS:
+    case WM_MOUSEMOVE:
+        HWND relWnd;
+        CAutoComboBox::s_mapComboWnd.Lookup(hWnd, relWnd);
+        ::PostMessage(relWnd, UMSG_EDITBOX_MOUSE_ACTION, (WPARAM)message, lParam);
+        break;
+    default:
+        break;
+
+    }
+
+    return ::CallWindowProc(CAutoComboBox::s_oldEditWndProc, hWnd, message, wParam, lParam);
+}
 
 void CAutoComboBox::PreSubclassWindow()
 {
@@ -125,10 +151,25 @@ void CAutoComboBox::PreSubclassWindow()
 
     //替换列表框消息处理函数
     s_oldListWndProc = (WNDPROC)::SetWindowLongPtr(cbi.hwndList, GWLP_WNDPROC, reinterpret_cast<LONG_PTR> (HookListboxWndProc));
+
+   
     LONG_PTR style = GetWindowLongPtr(cbi.hwndCombo, GWL_STYLE);
-    if (style & CBS_DROPDOWNLIST)
+    if ((style & CBS_DROPDOWNLIST) == CBS_DROPDOWNLIST)
     {
         m_bIsDropList = TRUE;
+    }
+    else 
+    {
+        m_bIsDropList = FALSE;
+
+        CEdit* pEdit = (CEdit*)GetWindow(GW_CHILD);
+        if (pEdit)
+        {
+            s_oldEditWndProc = (WNDPROC)::SetWindowLongPtr(pEdit->GetSafeHwnd(), GWLP_WNDPROC, reinterpret_cast<LONG_PTR> (HookEditBoxWndProc));
+
+            s_mapComboWnd.SetAt(pEdit->GetSafeHwnd(), this->m_hWnd);
+            s_mapComboWnd.SetAt(this->m_hWnd, pEdit->GetSafeHwnd());
+        }
     }
     //关于CMap类，今天略微接触了一下，只了解这个类中两个函数的作用
     //不过解决这里的小问题，足够了
@@ -141,7 +182,29 @@ void CAutoComboBox::PreSubclassWindow()
 
     SendMessage(CB_SETITEMHEIGHT, (WPARAM)-1, (LPARAM)BOX_HEIGHT);   //改变控件本身的高度
 
+    m_fontText.CreateFont(
+        16,                 //字体高度(旋转后的字体宽度)=56   
+        0,                 //字体宽度(旋转后的字体高度)=20 
+        0,             //字体显示角度=270° 
+        0,                                     //nOrientation=0 
+        FW_NORMAL,                                   //字体磅数=10 
+        FALSE,                             //非斜体 
+        FALSE,                             //无下划线 
+        FALSE,             //无删除线 
+        DEFAULT_CHARSET,         //使用缺省字符集 
+        OUT_DEFAULT_PRECIS,   //缺省输出精度 
+        CLIP_DEFAULT_PRECIS,//缺省裁减精度   
+        DEFAULT_QUALITY,         //nQuality=缺省值 
+        DEFAULT_PITCH,             //nPitchAndFamily=缺省值 
+        L"Tahoma");                   //字体名=@system 
+
+    //SetFont(&m_fontText);
+    m_rcArrow = cbi.rcButton;
+    m_rcItem = cbi.rcItem;
+    TRACE("Rect Item: %d,%d,%d,%d\n", RECT_PARAM(m_rcItem));
+    TRACE("Rect Button: %d,%d,%d,%d\n", RECT_PARAM(m_rcArrow));
 }
+
 
 
 void CAutoComboBox::OnLButtonDown(UINT nFlags, CPoint point)
@@ -161,6 +224,17 @@ void CAutoComboBox::OnMouseHover(UINT nFlags, CPoint point)
 void CAutoComboBox::OnMouseMove(UINT nFlags, CPoint point)
 {
     // TODO: Add your message handler code here and/or call default
+    m_bMouseOverBox = TRUE;
+   
+    if (m_rcArrow.PtInRect(point))
+    {
+        m_bMouseOverArrow = TRUE;
+    }
+    else {
+        m_bMouseOverArrow = FALSE;
+    }
+
+    TRACE("Mouse Move OverArrow: %d!\n", m_bMouseOverArrow);
     CComboBox::OnMouseMove(nFlags, point);
 }
 
@@ -240,58 +314,107 @@ void CAutoComboBox::DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct)
     dc.Detach();
 }
 
+void CAutoComboBox::OnPaint()
+{
+#if 0
+    CComboBox::OnPaint();
+#else
+    CPaintDC dc(this); // device context for painting
+                       // TODO: Add your message handler code here
+                       // Do not call CComboBox::OnPaint() for painting messages
 
-//void CAutoComboBox::OnPaint()
-//{
-//    CPaintDC dc(this); // device context for painting
-//                       // TODO: Add your message handler code here
-//                       // Do not call CComboBox::OnPaint() for painting messages
-//
-//    CRect rect;
-//    GetClientRect(rect);
-//    if (/*m_MouseHover*/TRUE)
-//    {
-//        dc.Draw3dRect(rect, RGB(102, 199, 250), RGB(99, 98, 255));
-//        rect.DeflateRect(1, 1, 1, 1);
-//        dc.Draw3dRect(rect, RGB(44, 141, 192), RGB(72, 171, 228));
-//        if (/*m_arrowHover*/TRUE)
-//        {
-//            //按钮边框
-//            CRect temArrowRect(m_arrowRect);
-//            dc.Draw3dRect(temArrowRect, RGB(90, 140, 167), RGB(72, 172, 228));
-//            temArrowRect.DeflateRect(1, 1, 1, 1);
-//            dc.Draw3dRect(temArrowRect, RGB(201, 238, 255), RGB(201, 238, 255));
-//            temArrowRect.DeflateRect(1, 1, 1, 1);
-//            if (this->GetDroppedState())
-//                dc.FillSolidRect(temArrowRect, RGB(19, 170, 247));
-//            else
-//                dc.FillSolidRect(temArrowRect, RGB(135, 205, 241));
-//
-//        }
-//        else  dc.FillSolidRect(m_arrowRect, RGB(255, 255, 255));
-//    }
-//    else
-//    {
-//        CRect temRect(rect);
-//        dc.Draw3dRect(temRect, RGB(70, 91, 92), RGB(121, 125, 128));//画边框
-//        temRect.DeflateRect(1, 1, 1, 1);
-//        dc.Draw3dRect(temRect, RGB(255, 255, 255), RGB(255, 255, 255));//画白色边框
-//        temRect.DeflateRect(1, 1, 1, 1);
-//        dc.Draw3dRect(temRect, RGB(255, 255, 255), RGB(255, 255, 255));//画白色边框
-//
-//        dc.FillSolidRect(m_arrowRect, RGB(255, 255, 255));
-//    }
-//    //画按钮里的三角形
-//    CPen pen;
-//    pen.CreatePen(1, 1, RGB(33, 25, 199));
-//    dc.SelectObject(&pen);
-//    dc.MoveTo(m_arrowRect.left + 3, m_arrowRect.top + 5);
-//    dc.LineTo(m_arrowRect.right - 3, m_arrowRect.top + 5);
-//    dc.MoveTo(m_arrowRect.left + 3, m_arrowRect.top + 5);
-//    dc.LineTo(m_arrowRect.left + m_arrowRect.Width() / 2, m_arrowRect.bottom - 5);
-//    dc.MoveTo(m_arrowRect.right - 3, m_arrowRect.top + 5);
-//    dc.LineTo(m_arrowRect.left + m_arrowRect.Width() / 2, m_arrowRect.bottom - 5);
-//}
+    COLORREF clrBkground(COMBO_NORMAL_BK_COLOR);
+    COLORREF clrText(ITEM_UNSELECT_TEXT_COLOR);
+    COLORREF clrFrame(COMBO_NORMAL_FRAME_COLOR);
+    POINT ptArrowBeg, ptArrowMid, ptArrowEnd;
+    CRect rect;
+    COMBOBOXINFO cbi;
+    cbi.cbSize = sizeof(COMBOBOXINFO);
+
+    GetClientRect(&rect);
+
+    GetComboBoxInfo(&cbi);  //获取组合框信息
+    m_rcArrow = cbi.rcButton;
+
+    int nArrowPaddingX = (m_rcArrow.Width() - ARROW_TRIANGLE_WIDTH) / 2;
+    int nArrowPaddingY = (m_rcArrow.Height() - ARROW_TRIANGLE_HEIGHT) / 2;
+
+    // arrow的坐标 6*4 倒三角形， 底部上下加距相等
+    ptArrowBeg.x = m_rcArrow.left + nArrowPaddingX;
+    ptArrowBeg.y = m_rcArrow.top + nArrowPaddingY;
+
+    ptArrowMid.x = m_rcArrow.left + m_rcArrow.Width() / 2;
+    ptArrowMid.y = ptArrowBeg.y + ARROW_TRIANGLE_HEIGHT;
+
+    ptArrowEnd.x = m_rcArrow.right - nArrowPaddingX;
+    ptArrowEnd.y = ptArrowBeg.y + 1;
+   
+
+
+    TRACE("OnPaint: Enable: %d, Over: %d, ArrowOver: %d, DropList: %d\n",
+        IsWindowEnabled(), m_bMouseOverBox, m_bMouseOverArrow, m_bIsDropList);
+    if (!IsWindowEnabled())
+    {
+        clrBkground = COMBO_DISABLED_BK_COLOR;
+        clrText = COMBO_DISABLED_TEXT_COLOR;
+        clrFrame = COMBO_DISABLED_FRAME_COLOR;
+    }
+    else 
+    {
+        if (m_bMouseOverBox)
+        {
+            clrFrame = (m_bIsDropList || m_bIsEditFocused) ? COMBO_MOUSE_ON_FRAME_COLOR : COMBO_NORMAL_MOUSE_ON_EDIT_COLOR;
+            clrText = COMBO_MOUSE_ON_TEXT_COLOR;
+            clrBkground = m_bIsDropList ? COMBO_MOUSE_ON_BK_COLOR : COMBO_NORMAL_BK_COLOR;
+
+            if (m_bMouseOverArrow)
+            {
+                //按钮边框
+                dc.Draw3dRect(&cbi.rcButton, COMBO_MOUSE_ON_FRAME_COLOR, COMBO_MOUSE_ON_FRAME_COLOR);
+            }
+        }
+        else
+        {
+            clrText = COMBO_NORMAL_TEXT_COLOR;
+            clrFrame = COMBO_NORMAL_FRAME_COLOR;
+            clrBkground = m_bIsDropList ? COMBO_READONLY_BK_COLOR : COMBO_NORMAL_BK_COLOR;
+        }
+    }
+
+    CFont *pOldFont;
+    CPen *pOldPen;
+    //dc.SetBkMode(TRANSPARENT);
+    dc.Draw3dRect(rect, clrFrame, clrFrame);//画边框
+    rect.DeflateRect(1, 1, 1, 1);
+    dc.FillSolidRect(rect, clrBkground);
+  
+    {
+        CString str;
+        GetWindowText(str);
+        //GetLBText(GetCurSel(), str);
+
+        pOldFont = dc.SelectObject(&m_fontText);
+        dc.SetTextColor(clrText);
+        dc.DrawText(str, &cbi.rcItem, DT_LEFT | DT_VCENTER | DT_SINGLELINE);//显示文本
+    }
+
+    {
+        /* ˇ */
+        static const int ARROW_X_OFFSET = 0;
+        static const int ARROW_Y_OFFSET = 0;
+        CPen penArrow;
+        penArrow.CreatePen(PS_SOLID, 2, COMBO_ARROW_COLOR);
+        pOldPen = dc.SelectObject(&penArrow);
+        dc.MoveTo(ptArrowBeg.x + ARROW_X_OFFSET, ptArrowBeg.y + ARROW_Y_OFFSET);
+        dc.LineTo(ptArrowMid.x + ARROW_X_OFFSET, ptArrowMid.y + ARROW_Y_OFFSET);
+        dc.MoveTo(ptArrowMid.x + ARROW_X_OFFSET, ptArrowMid.y + ARROW_Y_OFFSET);
+        dc.LineTo(ptArrowEnd.x + ARROW_X_OFFSET, ptArrowEnd.y + ARROW_Y_OFFSET);
+    }
+    dc.SelectObject(pOldPen);
+    dc.SelectObject(pOldFont);
+#endif
+}
+
 
 
 int CAutoComboBox::CompareItem(LPCOMPAREITEMSTRUCT lpCompareItemStruct)
@@ -318,13 +441,19 @@ int CAutoComboBox::CompareItem(LPCOMPAREITEMSTRUCT lpCompareItemStruct)
 }
 
 
+BOOL CAutoComboBox::IsMouseInWindow() const
+{
+    CRect rect;
+    GetWindowRect(&rect);
+
+    CPoint  pt;
+    GetCursorPos(&pt);
+
+    return (rect.PtInRect(pt));
+}
+
 BOOL CAutoComboBox::PreTranslateMessage(MSG* pMsg)
 {
-    // TODO: Add your specialized code here and/or call the base class
-    if (pMsg->message == WM_CREATE)
-    {
-       
-    }
     return CComboBox::PreTranslateMessage(pMsg);
 }
 
@@ -363,15 +492,6 @@ int CAutoComboBox::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
     if (CComboBox::OnCreate(lpCreateStruct) == -1)
         return -1;
-    RECT rc;
-    GetWindowRect(&rc);
-
-    CRect newPos(rc);
-    newPos.bottom = newPos.top + BOX_HEIGHT;
-    TRACE("OrgPos: %d,%d,%d,%d\n", RECT_PARAM(rc));
-    TRACE("newPos: %d,%d,%d,%d\n", RECT_PARAM(newPos));
-    ::SetWindowPos(m_hWnd, GetParent()->GetSafeHwnd(), newPos.left, newPos.top, newPos.Width(), newPos.Height(),
-        SWP_SHOWWINDOW);
 
     return 0;
 }
@@ -381,12 +501,6 @@ BOOL CAutoComboBox::Create(DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UI
 {
     // TODO: Add your specialized code here and/or call the base class
 
-    CRect newPos(rect);
-    TRACE("Height: %d\n", rect.bottom - rect.top);
-    newPos.bottom = newPos.top + BOX_HEIGHT;
-
-    SetWindowPos(pParentWnd, newPos.left, newPos.top, newPos.Width(), newPos.Height(),
-        SWP_SHOWWINDOW);
     return CComboBox::Create(dwStyle, rect, pParentWnd, nID);
 }
 
@@ -395,12 +509,6 @@ BOOL CAutoComboBox::CreateEx(DWORD dwExStyle, LPCTSTR lpszClassName, LPCTSTR lps
 {
     // TODO: Add your specialized code here and/or call the base class
 
-    CRect newPos(rect);
-    TRACE("Height: %d\n", rect.bottom - rect.top);
-    newPos.bottom = newPos.top + BOX_HEIGHT;
-
-    SetWindowPos(pParentWnd, newPos.left, newPos.top, newPos.Width(), newPos.Height(),
-        SWP_SHOWWINDOW);
     return CComboBox::CreateEx(dwExStyle, lpszClassName, lpszWindowName, dwStyle, rect, pParentWnd, nID, lpParam);
 }
 
@@ -416,6 +524,75 @@ void CAutoComboBox::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
     // TODO: Add your message handler code here and/or call default
 
-    lpMMI->ptMaxSize.y = BOX_HEIGHT;
     CComboBox::OnGetMinMaxInfo(lpMMI);
+}
+
+
+void CAutoComboBox::OnMouseLeave()
+{
+    // TODO: Add your message handler code here and/or call default
+    m_bMouseOverBox = FALSE;
+    m_bMouseOverArrow = FALSE;
+    TRACE("Mouse Leave!\n");
+    KillTimer(TIMER_REFRESH_BOX);
+    Invalidate();
+    CComboBox::OnMouseLeave();
+}
+
+
+void CAutoComboBox::OnSetFocus(CWnd* pOldWnd)
+{
+    CComboBox::OnSetFocus(pOldWnd);
+
+    // TODO: Add your message handler code here
+    TRACE("SetFocus\n");
+}
+
+
+void CAutoComboBox::OnKillFocus(CWnd* pNewWnd)
+{
+    CComboBox::OnKillFocus(pNewWnd);
+
+    // TODO: Add your message handler code here
+    TRACE("KillFocus\n");
+}
+
+
+void CAutoComboBox::OnTimer(UINT_PTR nIDEvent)
+{
+    // TODO: Add your message handler code here and/or call default
+
+    if (IsMouseInWindow())
+    {
+        Invalidate();
+    }
+    else
+    {
+        KillTimer(TIMER_REFRESH_BOX);
+    }
+
+    CComboBox::OnTimer(nIDEvent);
+}
+
+
+afx_msg LRESULT CAutoComboBox::OnUmsgEditboxMouseAction(WPARAM wParam, LPARAM lParam)
+{
+    UINT msg = (UINT)wParam;
+
+    if (WM_SETFOCUS == msg)
+    {
+        m_bIsEditFocused = TRUE;
+        KillTimer(TIMER_REFRESH_BOX);
+    }
+    else if (WM_KILLFOCUS == msg)
+    {
+        m_bIsEditFocused = FALSE;
+    }
+    else if (WM_MOUSEMOVE == msg)
+    {
+        m_bMouseOverBox = TRUE;
+        SetTimer(TIMER_REFRESH_BOX, 100, 0);
+    }
+    TRACE("EditBox Focus: %d\n", m_bIsEditFocused);
+    return 0;
 }
