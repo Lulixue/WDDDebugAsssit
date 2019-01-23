@@ -27,6 +27,8 @@ using std::set;
 
 
 #define RECT_PARAM(r)   r.top,r.left,r.right, r.bottom
+#define RECT_WIDTH(r)   (r.right - r.left)
+#define RECT_HEIGHT(r)  (r.bottom - r.top)
 
 class CAutoComboBox : public CComboBox
 {
@@ -63,6 +65,8 @@ public:
     virtual void PreSubclassWindow();
 
 public:
+    void SetMouseOver(BOOL bOn);
+    void RectResetCoord(RECT & rect, int offsetX = 0, int offsetY = 0);
     BOOL IsMouseInWindow() const;
     BOOL m_bIsDropList{ FALSE };
     BOOL m_bIsEditFocused{ FALSE };

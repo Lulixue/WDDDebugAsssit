@@ -1,6 +1,6 @@
 ﻿#include "stdafx.h"
 #include "CAutoComboBox.h"
-
+#include <vector>
 
 IMPLEMENT_DYNAMIC(CAutoComboBox, CComboBox)
 
@@ -221,20 +221,55 @@ void CAutoComboBox::OnMouseHover(UINT nFlags, CPoint point)
 }
 
 
+void CAutoComboBox::SetMouseOver(BOOL bOn)
+{
+    static ULONGLONG timeOn = GetTickCount64();
+    static ULONGLONG timLeave = GetTickCount64();
+    static const UINT TIME_FILTER_MS = 300;
+
+    if (m_bMouseOverBox == bOn)
+    {
+        return;
+    }
+
+    if (bOn)
+    {
+        
+        ULONGLONG span;
+        timeOn = GetTickCount64();
+        span = timeOn - timLeave;
+        TRACE("ON: TimeSpan(%d)\n", span);
+        if (span > TIME_FILTER_MS)
+        {
+            m_bMouseOverBox = TRUE;
+        }
+    }
+    else
+    {
+        timLeave = GetTickCount64();
+        m_bMouseOverBox = FALSE;
+    }
+}
+
 void CAutoComboBox::OnMouseMove(UINT nFlags, CPoint point)
 {
     // TODO: Add your message handler code here and/or call default
-    m_bMouseOverBox = TRUE;
+    //SetMouseOver(TRUE);
    
-    if (m_rcArrow.PtInRect(point))
+    //if (m_rcArrow.PtInRect(point))
+    //{
+    //    m_bMouseOverArrow = TRUE;
+    //}
+    //else {
+    //    m_bMouseOverArrow = FALSE;
+    //}
+
+    if (!m_bMouseOverBox)
     {
-        m_bMouseOverArrow = TRUE;
-    }
-    else {
-        m_bMouseOverArrow = FALSE;
+        SetTimer(TIMER_REFRESH_BOX, 50, 0);
     }
 
-    TRACE("Mouse Move OverArrow: %d!\n", m_bMouseOverArrow);
+    //TRACE("Mouse Move OverArrow: %d!\n", m_bMouseOverArrow);
     CComboBox::OnMouseMove(nFlags, point);
 }
 
@@ -314,45 +349,78 @@ void CAutoComboBox::DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct)
     dc.Detach();
 }
 
+
+void  CAutoComboBox::RectResetCoord(RECT & rect, int offsetX, int offsetY)
+{
+    rect.right = RECT_WIDTH(rect) + offsetX;
+    rect.bottom = RECT_HEIGHT(rect) + offsetY;
+    rect.top = offsetY;
+    rect.left = offsetX;
+}
+
+#define USE_COMPATIBLE_DC   0
 void CAutoComboBox::OnPaint()
 {
 #if 0
     CComboBox::OnPaint();
 #else
-    CPaintDC dc(this); // device context for painting
+
+#if USE_COMPATIBLE_DC
+    CPaintDC parentDc(this); // device context for painting
                        // TODO: Add your message handler code here
                        // Do not call CComboBox::OnPaint() for painting messages
 
+    CDC dc;
+    CBitmap bmp;
+    dc.CreateCompatibleDC(&parentDc);//创建与目标DC相兼容的内存DC，
+    bmp.CreateCompatibleBitmap(&parentDc, rect.Width(), rect.Height());//根据目标DC创建位图，为什么？看后面
+    dc.SelectObject(&bmp);//把位图选入内存DC
+#else
+    CPaintDC dc(this);
+#endif
+
+    static BOOL bFirstTime = TRUE;
     COLORREF clrBkground(COMBO_NORMAL_BK_COLOR);
     COLORREF clrText(ITEM_UNSELECT_TEXT_COLOR);
     COLORREF clrFrame(COMBO_NORMAL_FRAME_COLOR);
     POINT ptArrowBeg, ptArrowMid, ptArrowEnd;
-    CRect rect;
+    CRect rect, comboRect;
     COMBOBOXINFO cbi;
     cbi.cbSize = sizeof(COMBOBOXINFO);
 
-    GetClientRect(&rect);
-
+    GetClientRect(&comboRect);
     GetComboBoxInfo(&cbi);  //获取组合框信息
+
+    
+    rect = comboRect;
+    RectResetCoord(rect);
+    //RectResetCoord(cbi.rcButton, 3, 3);
+    //RectResetCoord(cbi.rcItem, 3, 3);
+
+    //cbi.rcButton.left += RECT_WIDTH(cbi.rcItem);
+    //cbi.rcButton.right += RECT_WIDTH(cbi.rcItem);
+
     m_rcArrow = cbi.rcButton;
 
-    int nArrowPaddingX = (m_rcArrow.Width() - ARROW_TRIANGLE_WIDTH) / 2;
-    int nArrowPaddingY = (m_rcArrow.Height() - ARROW_TRIANGLE_HEIGHT) / 2;
+    int nArrowPaddingX = (m_rcArrow.Width() - ARROW_TRIANGLE_WIDTH) / 2 - 1;
+    int nArrowPaddingY = (m_rcArrow.Height() - ARROW_TRIANGLE_HEIGHT) / 2 - 1;
 
     // arrow的坐标 6*4 倒三角形， 底部上下加距相等
     ptArrowBeg.x = m_rcArrow.left + nArrowPaddingX;
     ptArrowBeg.y = m_rcArrow.top + nArrowPaddingY;
-
     ptArrowMid.x = m_rcArrow.left + m_rcArrow.Width() / 2;
     ptArrowMid.y = ptArrowBeg.y + ARROW_TRIANGLE_HEIGHT;
-
     ptArrowEnd.x = m_rcArrow.right - nArrowPaddingX;
-    ptArrowEnd.y = ptArrowBeg.y + 1;
+    ptArrowEnd.y = ptArrowBeg.y;
+   
    
 
+  
+    BOOL bDrawArrowRect = FALSE;
+    BOOL bListDropped = GetDroppedState();
 
-    TRACE("OnPaint: Enable: %d, Over: %d, ArrowOver: %d, DropList: %d\n",
-        IsWindowEnabled(), m_bMouseOverBox, m_bMouseOverArrow, m_bIsDropList);
+    TRACE("OnPaint: ListDropped: %d, BtnState: %d, Enable: %d, Over: %d, ArrowOver: %d, DropList: %d\n", bListDropped, cbi.stateButton, IsWindowEnabled(), m_bMouseOverBox, m_bMouseOverArrow, m_bIsDropList);
+
     if (!IsWindowEnabled())
     {
         clrBkground = COMBO_DISABLED_BK_COLOR;
@@ -361,16 +429,16 @@ void CAutoComboBox::OnPaint()
     }
     else 
     {
-        if (m_bMouseOverBox)
+
+        if (m_bMouseOverBox || bListDropped)
         {
-            clrFrame = (m_bIsDropList || m_bIsEditFocused) ? COMBO_MOUSE_ON_FRAME_COLOR : COMBO_NORMAL_MOUSE_ON_EDIT_COLOR;
+            clrFrame = (m_bIsDropList || m_bIsEditFocused || bListDropped) ? COMBO_MOUSE_ON_FRAME_COLOR : COMBO_NORMAL_MOUSE_ON_EDIT_COLOR;
             clrText = COMBO_MOUSE_ON_TEXT_COLOR;
             clrBkground = m_bIsDropList ? COMBO_MOUSE_ON_BK_COLOR : COMBO_NORMAL_BK_COLOR;
 
-            if (m_bMouseOverArrow)
+            if (m_bMouseOverArrow && !m_bIsDropList)
             {
-                //按钮边框
-                dc.Draw3dRect(&cbi.rcButton, COMBO_MOUSE_ON_FRAME_COLOR, COMBO_MOUSE_ON_FRAME_COLOR);
+                bDrawArrowRect = TRUE;
             }
         }
         else
@@ -381,37 +449,99 @@ void CAutoComboBox::OnPaint()
         }
     }
 
+
     CFont *pOldFont;
     CPen *pOldPen;
-    //dc.SetBkMode(TRANSPARENT);
+    CPen penArrow;
+    CBrush brushBkground;
+    CString str;
+
+    brushBkground.CreateSolidBrush(clrBkground);
+    dc.SetBkMode(TRANSPARENT);
     dc.Draw3dRect(rect, clrFrame, clrFrame);//画边框
     rect.DeflateRect(1, 1, 1, 1);
-    dc.FillSolidRect(rect, clrBkground);
-  
-    {
-        CString str;
-        GetWindowText(str);
-        //GetLBText(GetCurSel(), str);
 
-        pOldFont = dc.SelectObject(&m_fontText);
-        dc.SetTextColor(clrText);
-        dc.DrawText(str, &cbi.rcItem, DT_LEFT | DT_VCENTER | DT_SINGLELINE);//显示文本
+    if (m_bIsDropList)
+    {
+        dc.FillSolidRect(rect, clrBkground);
+    }
+    else
+    {
+        CRgn rgnBox, rgnEdit;
+        rgnBox.CreateRectRgnIndirect(rect);
+        rgnEdit.CreateRectRgnIndirect(&cbi.rcItem);
+        // 处理后的rgnBox只包括了Edit框之外的客户区域，这样，Edit将不会被我的背景覆盖而导致重画。 
+        if (rgnBox.CombineRgn(&rgnBox, &rgnEdit, RGN_XOR) == ERROR)
+        {
+            ASSERT(FALSE);
+        }
+
+        dc.FillRgn(&rgnBox, &brushBkground);
     }
 
+    if (bDrawArrowRect)
     {
-        /* ˇ */
-        static const int ARROW_X_OFFSET = 0;
-        static const int ARROW_Y_OFFSET = 0;
-        CPen penArrow;
-        penArrow.CreatePen(PS_SOLID, 2, COMBO_ARROW_COLOR);
+        //cbi.rcButton.left = cbi.rcItem.right + 1;
+        cbi.rcButton.right = rect.right + 1;
+        cbi.rcButton.top = 0;
+        cbi.rcButton.bottom = RECT_HEIGHT(rect) + 2;
+        dc.Draw3dRect(&cbi.rcButton, COMBO_MOUSE_ON_FRAME_COLOR, COMBO_MOUSE_ON_FRAME_COLOR);
+    }
+
+    // Set Window Text
+    {
+        GetWindowText(str);
+        pOldFont = dc.SelectObject(&m_fontText);
+        dc.SetTextColor(clrText);
+
+        if (!m_bIsDropList)
+        {
+            //CEdit* pEdit = (CEdit*)GetWindow(GW_CHILD);
+            //pEdit->SetWindowTextW(str);
+        }
+        else
+        {
+            dc.DrawText(str, &cbi.rcItem, DT_LEFT | DT_VCENTER | DT_SINGLELINE);//显示文本
+        }
+        
+    }
+
+    // Draw Button
+    {
+        penArrow.CreatePen(PS_DASH, 1, COMBO_ARROW_COLOR);
         pOldPen = dc.SelectObject(&penArrow);
-        dc.MoveTo(ptArrowBeg.x + ARROW_X_OFFSET, ptArrowBeg.y + ARROW_Y_OFFSET);
-        dc.LineTo(ptArrowMid.x + ARROW_X_OFFSET, ptArrowMid.y + ARROW_Y_OFFSET);
-        dc.MoveTo(ptArrowMid.x + ARROW_X_OFFSET, ptArrowMid.y + ARROW_Y_OFFSET);
-        dc.LineTo(ptArrowEnd.x + ARROW_X_OFFSET, ptArrowEnd.y + ARROW_Y_OFFSET);
+
+        /*dc.MoveTo(ptArrowBeg.x-2, ptArrowBeg.y+1);
+        dc.LineTo(ptArrowMid.x-2, ptArrowMid.y+1);
+        dc.MoveTo(ptArrowMid.x-2, ptArrowMid.y+1);
+        dc.LineTo(ptArrowEnd.x, ptArrowEnd.y);*/
+
+        int x = ptArrowBeg.x;
+        int y = ptArrowBeg.y;
+        for (; x <= ptArrowMid.x; x++, y++)
+        {
+            //TRACE("Pixel: %d,%d\n", x, y);
+            dc.SetPixel(x, y, COMBO_ARROW_COLOR);
+        }
+
+        for (; x <= ptArrowEnd.x; x++, y--)
+        {
+            //TRACE("Pixel: %d,%d\n", x, y);
+            dc.SetPixel(x, y, COMBO_ARROW_COLOR);
+        }
+
+        
     }
     dc.SelectObject(pOldPen);
     dc.SelectObject(pOldFont);
+
+#if USE_COMPATIBLE_DC
+    parentDc.BitBlt(comboRect.left, comboRect.top, comboRect.Width(), comboRect.Height(), &dc, 0, 0, SRCCOPY);
+
+    bmp.DeleteObject();
+    dc.DeleteDC();
+#endif
+
 #endif
 }
 
@@ -531,11 +661,11 @@ void CAutoComboBox::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 void CAutoComboBox::OnMouseLeave()
 {
     // TODO: Add your message handler code here and/or call default
-    m_bMouseOverBox = FALSE;
     m_bMouseOverArrow = FALSE;
-    TRACE("Mouse Leave!\n");
-    KillTimer(TIMER_REFRESH_BOX);
+    m_bMouseOverBox = FALSE;
+    //TRACE("Mouse Leave!\n");
     Invalidate();
+    KillTimer(TIMER_REFRESH_BOX);
     CComboBox::OnMouseLeave();
 }
 
@@ -562,15 +692,42 @@ void CAutoComboBox::OnTimer(UINT_PTR nIDEvent)
 {
     // TODO: Add your message handler code here and/or call default
 
-    if (IsMouseInWindow())
+    CRect rect;
+    GetWindowRect(&rect);
+
+    CPoint  pt;
+    GetCursorPos(&pt);
+
+    if (rect.PtInRect(pt))
     {
-        Invalidate();
+        ScreenToClient(&pt);
+        if (!m_bMouseOverArrow && m_rcArrow.PtInRect(pt))
+        {
+            m_bMouseOverArrow = TRUE;
+            InvalidateRect(&m_rcArrow);
+        }
+
+        if (!m_bMouseOverBox)
+        {
+            m_bMouseOverBox = TRUE;
+            //InvalidateRect(&rect);
+            Invalidate();
+        }
     }
     else
     {
+        if (m_bMouseOverBox)
+        {
+            m_bMouseOverArrow = FALSE;
+            {
+                m_bMouseOverBox = FALSE;
+                Invalidate();
+            }
+        }
         KillTimer(TIMER_REFRESH_BOX);
     }
-
+    TRACE("Timer: OverBox: %d, OverArrow: %d\n", m_bMouseOverBox, m_bMouseOverArrow);
+   
     CComboBox::OnTimer(nIDEvent);
 }
 
@@ -582,7 +739,6 @@ afx_msg LRESULT CAutoComboBox::OnUmsgEditboxMouseAction(WPARAM wParam, LPARAM lP
     if (WM_SETFOCUS == msg)
     {
         m_bIsEditFocused = TRUE;
-        KillTimer(TIMER_REFRESH_BOX);
     }
     else if (WM_KILLFOCUS == msg)
     {
@@ -590,9 +746,9 @@ afx_msg LRESULT CAutoComboBox::OnUmsgEditboxMouseAction(WPARAM wParam, LPARAM lP
     }
     else if (WM_MOUSEMOVE == msg)
     {
-        m_bMouseOverBox = TRUE;
-        SetTimer(TIMER_REFRESH_BOX, 100, 0);
+        if (!m_bMouseOverBox)
+            SetTimer(TIMER_REFRESH_BOX, 50, 0);
     }
-    TRACE("EditBox Focus: %d\n", m_bIsEditFocused);
+    //TRACE("EditBox Focus: %d\n", m_bIsEditFocused);
     return 0;
 }
