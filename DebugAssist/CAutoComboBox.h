@@ -37,7 +37,7 @@ class CAutoComboBox : public CComboBox
 	DECLARE_DYNAMIC(CAutoComboBox)
 public:
 	CAutoComboBox() {}
-	virtual ~CAutoComboBox() {}
+    virtual ~CAutoComboBox() { m_fontText.DeleteObject(); }
 
 
 protected:
@@ -52,7 +52,7 @@ private:
     const static UINT ARROW_HEIGHT = BOX_HEIGHT+6;
     const static UINT ARROW_WIDTH = 20;
     const static UINT ARROW_TRIANGLE_HEIGHT = 4;
-    const static UINT ARROW_TRIANGLE_WIDTH = 6;
+    const static UINT ARROW_TRIANGLE_WIDTH = 8;
     const static UINT TIMER_REFRESH_BOX = 1;
 
 public:

@@ -402,6 +402,7 @@ void CAutoComboBox::OnPaint()
 
     m_rcArrow = cbi.rcButton;
 
+
     int nArrowPaddingX = (m_rcArrow.Width() - ARROW_TRIANGLE_WIDTH) / 2 - 1;
     int nArrowPaddingY = (m_rcArrow.Height() - ARROW_TRIANGLE_HEIGHT) / 2 - 1;
 
@@ -450,8 +451,10 @@ void CAutoComboBox::OnPaint()
 
     CFont *pOldFont;
     CPen *pOldPen;
+    CBrush *pOldBrush;
     CPen penArrow;
     CBrush brushBkground;
+    CBrush brushArrow;
     CString str;
 
     dc.SetBkMode(TRANSPARENT);
@@ -513,8 +516,10 @@ void CAutoComboBox::OnPaint()
 
     // Draw Button
     {
-        penArrow.CreatePen(PS_DASH, 2, COMBO_ARROW_COLOR);
+        penArrow.CreatePen(PS_DASH, 1, COMBO_ARROW_COLOR);
         pOldPen = dc.SelectObject(&penArrow);
+        /*brushArrow.CreateSolidBrush(COMBO_ARROW_COLOR);
+        pOldBrush = dc.SelectObject(&brushArrow);*/
 
      /*   dc.MoveTo(ptArrowBeg.x + 1, ptArrowBeg.y + 1);
         dc.LineTo(ptArrowMid.x - 1, ptArrowMid.y - 1);
@@ -527,12 +532,14 @@ void CAutoComboBox::OnPaint()
         {
             //TRACE("Pixel: %d,%d\n", x, y);
             dc.SetPixel(x, y, COMBO_ARROW_COLOR);
+            //dc.Ellipse(x, y, x + 2, y + 1);
         }
 
         for (; x <= (ptArrowEnd.x-1); x++, y--)
         {
             //TRACE("Pixel: %d,%d\n", x, y);
             dc.SetPixel(x, y, COMBO_ARROW_COLOR);
+            //dc.Ellipse(x, y, x + 2, y + 1);
         }
 
         
