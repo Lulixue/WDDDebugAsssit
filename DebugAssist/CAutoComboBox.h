@@ -15,8 +15,9 @@ using std::set;
 #define COMBO_ARROW_COLOR           (RGB(86, 86, 86))       // 灰色
 #define COMBO_READONLY_BK_COLOR       (RGB(225, 225, 225))    // 灰色
 #define COMBO_DISABLED_TEXT_COLOR     (RGB(125, 109, 109))    // 深灰色
-#define COMBO_DISABLED_BK_COLOR         COMBO_READONLY_BK_COLOR
-#define COMBO_DISABLED_FRAME_COLOR      COMBO_READONLY_BK_COLOR
+#define COMBO_DISABLED_BK_COLOR         (RGB(204, 204, 204))
+#define COMBO_DISABLED_FRAME_COLOR      (RGB(191, 191, 191))
+#define COMBO_DISABLED_EDIT_OUTTER_COLOR    (RGB(255, 255, 255))    // 白色
 #define COMBO_MOUSE_ON_BK_COLOR         (RGB(229, 241, 251))      // 浅灰色
 #define COMBO_MOUSE_ON_FRAME_COLOR      ITEM_SELECT_BK_COLOR      // 蓝色
 #define COMBO_MOUSE_ON_TEXT_COLOR       ITEM_UNSELECT_TEXT_COLOR
@@ -27,6 +28,7 @@ using std::set;
 
 
 #define RECT_PARAM(r)   r.top,r.left,r.right, r.bottom
+#define POINT_PARAM(p)  p.x, p.y
 #define RECT_WIDTH(r)   (r.right - r.left)
 #define RECT_HEIGHT(r)  (r.bottom - r.top)
 
@@ -67,7 +69,7 @@ public:
 public:
     void SetMouseOver(BOOL bOn);
     void RectResetCoord(RECT & rect, int offsetX = 0, int offsetY = 0);
-    BOOL IsMouseInWindow() const;
+    BOOL IsCaretInWindow() const;
     BOOL m_bIsDropList{ FALSE };
     BOOL m_bIsEditFocused{ FALSE };
     BOOL m_bMouseHoverOnDelBtn{ FALSE };//用于判选中项按钮的状态，0正常,1鼠标停留。

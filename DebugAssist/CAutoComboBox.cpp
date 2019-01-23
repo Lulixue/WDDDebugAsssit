@@ -415,8 +415,9 @@ void CAutoComboBox::OnPaint()
    
     BOOL bDrawArrowRect = FALSE;
     BOOL bListDropped = GetDroppedState();
+    BOOL bCurseInCtrl = FALSE;
 
-    TRACE("OnPaint: ListDropped: %d, BtnState: %d, Enable: %d, Over: %d, ArrowOver: %d, DropList: %d\n", bListDropped, cbi.stateButton, IsWindowEnabled(), m_bMouseOverBox, m_bMouseOverArrow, m_bIsDropList);
+    TRACE("OnPaint: Cursor: %d, ListDropped: %d, BtnState: %d, Enable: %d, Over: %d, ArrowOver: %d, DropList: %d\n", IsCaretInWindow(), bListDropped, cbi.stateButton, IsWindowEnabled(), m_bMouseOverBox, m_bMouseOverArrow, m_bIsDropList);
 
     if (!IsWindowEnabled())
     {
@@ -453,11 +454,11 @@ void CAutoComboBox::OnPaint()
     CBrush brushBkground;
     CString str;
 
-    brushBkground.CreateSolidBrush(clrBkground);
     dc.SetBkMode(TRANSPARENT);
     dc.Draw3dRect(rect, clrFrame, clrFrame);//画边框
     rect.DeflateRect(1, 1, 1, 1);
 
+   
     if (m_bIsDropList)
     {
         dc.FillSolidRect(rect, clrBkground);
@@ -472,11 +473,17 @@ void CAutoComboBox::OnPaint()
         {
             ASSERT(FALSE);
         }
-
+        if (IsWindowEnabled())
+        {
+            brushBkground.CreateSolidBrush(clrBkground);
+        }
+        else {
+            brushBkground.CreateSolidBrush(COMBO_DISABLED_EDIT_OUTTER_COLOR);
+        }
         dc.FillRgn(&rgnBox, &brushBkground);
     }
 
-    if (bDrawArrowRect)
+    if (bDrawArrowRect && IsWindowEnabled())
     {
         //cbi.rcButton.left = cbi.rcItem.right + 1;
         cbi.rcButton.right = rect.right + 1;
@@ -491,13 +498,14 @@ void CAutoComboBox::OnPaint()
         pOldFont = dc.SelectObject(&m_fontText);
         dc.SetTextColor(clrText);
 
-        if (!m_bIsDropList)
+        if (!m_bIsDropList && IsWindowEnabled())
         {
             //CEdit* pEdit = (CEdit*)GetWindow(GW_CHILD);
             //pEdit->SetWindowTextW(str);
         }
         else
         {
+            cbi.rcItem.left += 1;
             dc.DrawText(str, &cbi.rcItem, DT_LEFT | DT_VCENTER | DT_SINGLELINE);//显示文本
         }
         
@@ -508,10 +516,10 @@ void CAutoComboBox::OnPaint()
         penArrow.CreatePen(PS_DASH, 2, COMBO_ARROW_COLOR);
         pOldPen = dc.SelectObject(&penArrow);
 
-        /*dc.MoveTo(ptArrowBeg.x-2, ptArrowBeg.y+1);
-        dc.LineTo(ptArrowMid.x-2, ptArrowMid.y+1);
-        dc.MoveTo(ptArrowMid.x-2, ptArrowMid.y+1);
-        dc.LineTo(ptArrowEnd.x, ptArrowEnd.y);*/
+     /*   dc.MoveTo(ptArrowBeg.x + 1, ptArrowBeg.y + 1);
+        dc.LineTo(ptArrowMid.x - 1, ptArrowMid.y - 1);
+        dc.MoveTo(ptArrowMid.x - 1, ptArrowMid.y - 1);
+        dc.LineTo(ptArrowEnd.x - 1, ptArrowEnd.y - 1);*/
 
         int x = ptArrowBeg.x+1;
         int y = ptArrowBeg.y+1;
@@ -568,13 +576,16 @@ int CAutoComboBox::CompareItem(LPCOMPAREITEMSTRUCT lpCompareItemStruct)
 }
 
 
-BOOL CAutoComboBox::IsMouseInWindow() const
+BOOL CAutoComboBox::IsCaretInWindow() const
 {
     CRect rect;
     GetWindowRect(&rect);
 
     CPoint  pt;
     GetCursorPos(&pt);
+
+    TRACE("Window: (%d,%d,%d,%d)\n", RECT_PARAM(rect));
+    TRACE("Cursor: (%d,%d)\n", POINT_PARAM(pt));
 
     return (rect.PtInRect(pt));
 }
