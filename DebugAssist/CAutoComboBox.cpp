@@ -413,9 +413,6 @@ void CAutoComboBox::OnPaint()
     ptArrowEnd.x = m_rcArrow.right - nArrowPaddingX;
     ptArrowEnd.y = ptArrowBeg.y;
    
-   
-
-  
     BOOL bDrawArrowRect = FALSE;
     BOOL bListDropped = GetDroppedState();
 
@@ -508,7 +505,7 @@ void CAutoComboBox::OnPaint()
 
     // Draw Button
     {
-        penArrow.CreatePen(PS_DASH, 1, COMBO_ARROW_COLOR);
+        penArrow.CreatePen(PS_DASH, 2, COMBO_ARROW_COLOR);
         pOldPen = dc.SelectObject(&penArrow);
 
         /*dc.MoveTo(ptArrowBeg.x-2, ptArrowBeg.y+1);
@@ -516,15 +513,15 @@ void CAutoComboBox::OnPaint()
         dc.MoveTo(ptArrowMid.x-2, ptArrowMid.y+1);
         dc.LineTo(ptArrowEnd.x, ptArrowEnd.y);*/
 
-        int x = ptArrowBeg.x;
-        int y = ptArrowBeg.y;
-        for (; x <= ptArrowMid.x; x++, y++)
+        int x = ptArrowBeg.x+1;
+        int y = ptArrowBeg.y+1;
+        for (; x <= (ptArrowMid.x-1); x++, y++)
         {
             //TRACE("Pixel: %d,%d\n", x, y);
             dc.SetPixel(x, y, COMBO_ARROW_COLOR);
         }
 
-        for (; x <= ptArrowEnd.x; x++, y--)
+        for (; x <= (ptArrowEnd.x-1); x++, y--)
         {
             //TRACE("Pixel: %d,%d\n", x, y);
             dc.SetPixel(x, y, COMBO_ARROW_COLOR);
@@ -661,11 +658,11 @@ void CAutoComboBox::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 void CAutoComboBox::OnMouseLeave()
 {
     // TODO: Add your message handler code here and/or call default
-    m_bMouseOverArrow = FALSE;
-    m_bMouseOverBox = FALSE;
+    //m_bMouseOverArrow = FALSE;
+    //m_bMouseOverBox = FALSE;
     //TRACE("Mouse Leave!\n");
-    Invalidate();
-    KillTimer(TIMER_REFRESH_BOX);
+    //Invalidate();
+    //KillTimer(TIMER_REFRESH_BOX);
     CComboBox::OnMouseLeave();
 }
 
@@ -716,15 +713,17 @@ void CAutoComboBox::OnTimer(UINT_PTR nIDEvent)
     }
     else
     {
-        if (m_bMouseOverBox)
+
+        if (!GetDroppedState())
         {
             m_bMouseOverArrow = FALSE;
-            {
-                m_bMouseOverBox = FALSE;
-                Invalidate();
-            }
+            m_bMouseOverBox = FALSE;
+            Invalidate();
         }
-        KillTimer(TIMER_REFRESH_BOX);
+        if (!m_bMouseOverBox)
+        {
+            KillTimer(TIMER_REFRESH_BOX);
+        }
     }
     TRACE("Timer: OverBox: %d, OverArrow: %d\n", m_bMouseOverBox, m_bMouseOverArrow);
    
@@ -747,7 +746,9 @@ afx_msg LRESULT CAutoComboBox::OnUmsgEditboxMouseAction(WPARAM wParam, LPARAM lP
     else if (WM_MOUSEMOVE == msg)
     {
         if (!m_bMouseOverBox)
+        {
             SetTimer(TIMER_REFRESH_BOX, 50, 0);
+        }
     }
     //TRACE("EditBox Focus: %d\n", m_bIsEditFocused);
     return 0;
