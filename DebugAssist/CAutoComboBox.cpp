@@ -59,6 +59,7 @@ int CAutoComboBox::SetCurSel(int nSelect)
 {
 	int nRet = CComboBox::SetCurSel(nSelect);
 	::PostMessage(GetParent()->GetSafeHwnd(), UMSG_COMBO_SEL_CHANGE, (WPARAM)GetDlgCtrlID(), 0);
+    Invalidate();
 	return nRet;
 }
 
@@ -299,35 +300,30 @@ void CAutoComboBox::DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct)
             m_rcDelButton.bottom = itemRect.bottom;
             //TRACE("DelRect:(%d,%d,%d,%d)\n", RECT_PARAM(m_rcDelButton));
             //TRACE("ItemRect:(%d,%d,%d,%d)\n", RECT_PARAM(itemRect));
-
             dc.FillSolidRect(&itemRect, ITEM_SELECT_BK_COLOR);
             //if ((nAction != ODA_DRAWENTIRE) || (GetCount() == 1))
-            if (TRUE)
+            if (m_bMouseHoverOnDelBtn) //鼠标停留 
             {
-                if (m_bMouseHoverOnDelBtn) //鼠标停留 
-                {
-                    // 填充红色背影
-                    dc.FillSolidRect(&m_rcDelButton, DEL_BUTTON_MOUSE_ON_COLOR);
-                    pen.CreatePen(1, 2, ITEM_SELECT_TEXT_COLOR);
-                    itemRect.right -= DEL_RECT_WIDTH;
-                    // 画白色X按钮
-                    CRect temDelRect = m_rcDelButton;
-                    temDelRect.top += 5;
-                    temDelRect.right -= 5;
-                    temDelRect.bottom -= 5;
-                    temDelRect.left += 5;
-                    //temDelRect.DeflateRect(2, 2, 2, 2);
-                    dc.SelectObject(&pen);
+                // 填充红色背影
+                dc.FillSolidRect(&m_rcDelButton, DEL_BUTTON_MOUSE_ON_COLOR);
+                pen.CreatePen(1, 2, ITEM_SELECT_TEXT_COLOR);
+                itemRect.right -= DEL_RECT_WIDTH;
+                // 画白色X按钮
+                CRect temDelRect = m_rcDelButton;
+                temDelRect.top += 5;
+                temDelRect.right -= 5;
+                temDelRect.bottom -= 5;
+                temDelRect.left += 5;
+                //temDelRect.DeflateRect(2, 2, 2, 2);
+                dc.SelectObject(&pen);
 
-                    //TRACE("temDelRect:(%d,%d,%d,%d)\n", RECT_PARAM(temDelRect));
-                    dc.MoveTo(temDelRect.left, temDelRect.top);
-                    dc.LineTo(temDelRect.right, temDelRect.bottom);
-                    dc.MoveTo(temDelRect.right, temDelRect.top);
-                    dc.LineTo(temDelRect.left, temDelRect.bottom);
-                }
-               
-                //dc.Draw3dRect(itemRect, RGB(0, 0, 240), RGB(0, 0, 200));//给选中项画边框
+                //TRACE("temDelRect:(%d,%d,%d,%d)\n", RECT_PARAM(temDelRect));
+                dc.MoveTo(temDelRect.left, temDelRect.top);
+                dc.LineTo(temDelRect.right, temDelRect.bottom);
+                dc.MoveTo(temDelRect.right, temDelRect.top);
+                dc.LineTo(temDelRect.left, temDelRect.bottom);
             }
+               
             dc.SetTextColor(ITEM_SELECT_TEXT_COLOR);
         }
         else
@@ -365,6 +361,21 @@ void CAutoComboBox::OnPaint()
     CComboBox::OnPaint();
 #else
 
+    COLORREF clrBkground(COMBO_NORMAL_BK_COLOR);
+    COLORREF clrText(ITEM_UNSELECT_TEXT_COLOR);
+    COLORREF clrFrame(COMBO_NORMAL_FRAME_COLOR);
+    POINT ptArrowBeg, ptArrowMid, ptArrowEnd;
+    CRect rect, comboRect;
+    COMBOBOXINFO cbi;
+    cbi.cbSize = sizeof(COMBOBOXINFO);
+
+    GetClientRect(&comboRect);
+    GetComboBoxInfo(&cbi);  //获取组合框信息
+
+
+    rect = comboRect;
+    RectResetCoord(rect);
+
 #if USE_COMPATIBLE_DC
     CPaintDC parentDc(this); // device context for painting
                        // TODO: Add your message handler code here
@@ -379,21 +390,7 @@ void CAutoComboBox::OnPaint()
     CPaintDC dc(this);
 #endif
 
-    static BOOL bFirstTime = TRUE;
-    COLORREF clrBkground(COMBO_NORMAL_BK_COLOR);
-    COLORREF clrText(ITEM_UNSELECT_TEXT_COLOR);
-    COLORREF clrFrame(COMBO_NORMAL_FRAME_COLOR);
-    POINT ptArrowBeg, ptArrowMid, ptArrowEnd;
-    CRect rect, comboRect;
-    COMBOBOXINFO cbi;
-    cbi.cbSize = sizeof(COMBOBOXINFO);
 
-    GetClientRect(&comboRect);
-    GetComboBoxInfo(&cbi);  //获取组合框信息
-
-    
-    rect = comboRect;
-    RectResetCoord(rect);
     //RectResetCoord(cbi.rcButton, 3, 3);
     //RectResetCoord(cbi.rcItem, 3, 3);
 
@@ -418,7 +415,8 @@ void CAutoComboBox::OnPaint()
     BOOL bListDropped = GetDroppedState();
     BOOL bCurseInCtrl = FALSE;
 
-    TRACE("OnPaint: Cursor: %d, ListDropped: %d, BtnState: %d, Enable: %d, Over: %d, ArrowOver: %d, DropList: %d\n", IsCaretInWindow(), bListDropped, cbi.stateButton, IsWindowEnabled(), m_bMouseOverBox, m_bMouseOverArrow, m_bIsDropList);
+    if (m_bIsDropList)
+        TRACE("OnPaint: DropList: %d, ListDropped: %d, Enable: %d, EditFocuse:%d,  Over: %d, ArrowOver: %d\n", m_bIsDropList, bListDropped, IsWindowEnabled(), m_bIsEditFocused, m_bMouseOverBox, m_bMouseOverArrow);
 
     if (!IsWindowEnabled())
     {
@@ -451,7 +449,6 @@ void CAutoComboBox::OnPaint()
 
     CFont *pOldFont;
     CPen *pOldPen;
-    CBrush *pOldBrush;
     CPen penArrow;
     CBrush brushBkground;
     CBrush brushArrow;

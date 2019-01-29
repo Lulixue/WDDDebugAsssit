@@ -18,6 +18,8 @@
 #endif
 
 HWND g_hwndDebug;
+CString g_strToolDate;
+CString g_strCopyRight;
 // CAboutDlg dialog used for App About
 
 #define ST_TIME_PARA(st)   st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond
@@ -40,6 +42,8 @@ public:
 // Implementation
 protected:
 	DECLARE_MESSAGE_MAP()
+public:
+    afx_msg void OnShowWindow(BOOL bShow, UINT nStatus);
 };
 
 CAboutDlg::CAboutDlg() : CDialogEx(IDD_ABOUTBOX)
@@ -51,11 +55,83 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 }
 
+void CAboutDlg::OnShowWindow(BOOL bShow, UINT nStatus)
+{
+    CDialogEx::OnShowWindow(bShow, nStatus);
+
+    SetDlgItemText(IDC_STATIC_BUILD_TIME, g_strToolDate);
+    SetDlgItemText(IDC_STATIC_COPYRIGHT, g_strCopyRight);
+
+}
+
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
+    ON_WM_SHOWWINDOW()
 END_MESSAGE_MAP()
 
 
 // CDebugAssistDlg dialog
+void GetCompileDateTime()
+{
+    const char *szEnglishMonth[12] = {
+        "Jan","Feb","Mar","Apr","May","Jun",
+        "Jul","Aug","Sep","Oct","Nov","Dec",
+    };
+    char szTmpDate[100] = { 0 };
+    char szTmpTime[100] = { 0 };
+    char szMonth[10] = { 0 };
+    wchar_t szDateTime[250] = { 0 };
+    int iYear, iMonth, iDay;
+    int iHour, iMin, iSec;
+
+    //获取编译日期、时间 
+    sprintf_s(szTmpDate, "%s", __DATE__); //"Sep 18 2010" 
+    sprintf_s(szTmpTime, "%s", __TIME__); //"10:59:19" 
+
+    memcpy(szMonth, szTmpDate, 3);
+    for (int i = 0; i < 12; i++)
+    {
+        if (strncmp(szMonth, szEnglishMonth[i], 3) == 0)
+        {
+            iMonth = i + 1;
+            break;
+        }
+    }
+    memset(szMonth, 0, 10);
+    memcpy(szMonth, szTmpDate + 4, 2);
+    iDay = atoi(szMonth);
+
+    memset(szMonth, 0, 10);
+    memcpy(szMonth, szTmpDate + 7, 4);
+    iYear = atoi(szMonth);
+
+
+    memset(szMonth, 0, 10);
+    memcpy(szMonth, szTmpTime, 2);
+    iHour = atoi(szMonth);
+
+    memset(szMonth, 0, 10);
+    memcpy(szMonth, szTmpTime + 3, 2);
+    iMin = atoi(szMonth);
+
+
+    memset(szMonth, 0, 10);
+    memcpy(szMonth, szTmpTime + 6, 2);
+    iSec = atoi(szMonth);
+
+
+    wsprintf(szDateTime, TEXT("DebugAssist Build@%4d-%02d-%02d_%02d:%02d:%02d"),
+        iYear, iMonth, iDay, iHour, iMin, iSec);
+
+    TRACE(TEXT("%s"), szDateTime);
+    TRACE("\n");
+    g_strToolDate = szDateTime;
+
+
+    sprintf_s(szTmpDate, "Copyright(C) %d", iYear);
+    g_strCopyRight = szTmpDate;
+
+    //g_strToolDate = TEXT("AdbTool, V1.0");
+}
 
 
 
@@ -63,6 +139,7 @@ CDebugAssistDlg::CDebugAssistDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_DEBUGASSIST_DIALOG, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+    GetCompileDateTime();
 }
 
 void CDebugAssistDlg::DoDataExchange(CDataExchange* pDX)
@@ -1665,3 +1742,4 @@ void CDebugAssistDlg::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 
     CDialogEx::OnGetMinMaxInfo(lpMMI);
 }
+
