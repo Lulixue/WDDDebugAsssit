@@ -12,6 +12,7 @@
 #include <algorithm>
 #include "CSystemInfo.h"
 #include "CDialogSelectDriverDir.h"
+#include "CDialogDataTool.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -20,6 +21,7 @@
 HWND g_hwndDebug;
 CString g_strToolDate;
 CString g_strCopyRight;
+CDialogDataTool *g_pDlgDataTool;
 // CAboutDlg dialog used for App About
 
 #define ST_TIME_PARA(st)   st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond
@@ -133,7 +135,13 @@ void GetCompileDateTime()
     //g_strToolDate = TEXT("AdbTool, V1.0");
 }
 
-
+#define DestroyToolDialog(pDlg) \
+	do {\
+		if (pDlg) { \
+			pDlg->DestroyWindow();\
+			pDlg = NULL;\
+		}\
+	} while(0)
 
 CDebugAssistDlg::CDebugAssistDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_DEBUGASSIST_DIALOG, pParent)
@@ -158,6 +166,11 @@ void CDebugAssistDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_BTN_FLASH, m_btnFlash);
 	DDX_Control(pDX, IDC_EDIT_DST_FILENAME, m_editDstFilename);
 	DDX_Control(pDX, IDC_COMBO_FWFITM_PATH, m_cbFwFitMergedPaths);
+}
+
+CDebugAssistDlg::~CDebugAssistDlg()
+{
+    DestroyToolDialog(g_pDlgDataTool);
 }
 
 BEGIN_MESSAGE_MAP(CDebugAssistDlg, CDialogEx)
@@ -188,6 +201,7 @@ BEGIN_MESSAGE_MAP(CDebugAssistDlg, CDialogEx)
 	ON_WM_TIMER()
     ON_MESSAGE(UMSG_UPDATE_DEST_DRIVER_DIR, &CDebugAssistDlg::OnUmsgUpdateDestDriverDir)
     ON_WM_GETMINMAXINFO()
+    ON_BN_CLICKED(IDC_BUTTON_DATA_TOOL, &CDebugAssistDlg::OnBnClickedButtonDataTool)
 END_MESSAGE_MAP()
 
 
@@ -1741,5 +1755,20 @@ void CDebugAssistDlg::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
     // TODO: Add your message handler code here and/or call default
 
     CDialogEx::OnGetMinMaxInfo(lpMMI);
+}
+
+
+
+void CDebugAssistDlg::OnBnClickedButtonDataTool()
+{
+    if ((g_pDlgDataTool != NULL) && g_pDlgDataTool->IsWindowVisible())
+    {
+        g_pDlgDataTool->ShowWindow(SW_NORMAL);
+    }
+    else {
+        g_pDlgDataTool = new CDialogDataTool();
+        g_pDlgDataTool->Create(IDD_DIALOG_DATA_TOOL, GetDesktopWindow());
+        g_pDlgDataTool->ShowWindow(SW_SHOWNORMAL);
+    }
 }
 

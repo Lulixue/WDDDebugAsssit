@@ -194,6 +194,7 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CDialogDataTool.h" />
     <ClInclude Include="CDialogSelectDriverDir.h" />
     <ClInclude Include="CSystemInfo.h" />
     <ClInclude Include="ProcInterface.h" />
@@ -205,6 +206,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CDialogDataTool.cpp" />
     <ClCompile Include="CDialogSelectDriverDir.cpp" />
     <ClCompile Include="CSystemInfo.cpp" />
     <ClCompile Include="ProcInterface.cpp" />

@@ -9,6 +9,7 @@
 #define IDS_NO_CONNECTION               102
 #define IDR_MAINFRAME                   128
 #define IDD_DIALOG_SELECT_DRIVER_DEST_DIR 131
+#define IDD_DIALOG_DATA_TOOL            134
 #define IDC_COMBO_COMS                  1000
 #define IDC_BTN_COM_DBG                 1001
 #define IDC_RICHEDIT_LOG                1002
@@ -36,7 +37,9 @@
 #define IDC_BUTTON1                     1025
 #define IDC_BUTTON_UEFI_DIR             1025
 #define IDC_BUTTON_CHANGE_OWNER         1025
+#define IDC_BUTTON_TRANSLATE            1025
 #define IDC_EDIT_DST_FILENAME           1026
+#define IDC_BUTTON_Reset                1026
 #define IDC_BUTTON_DD_FLASH             1027
 #define IDC_STATIC_SYSTEM_STATUS        1028
 #define IDC_COMBO_DRIVER_SHORTCUTS      1029
@@ -46,14 +49,21 @@
 #define IDC_BUTTON_PATH_OK              1033
 #define IDC_STATIC_BUILD_TIME           1033
 #define IDC_STATIC_COPYRIGHT            1034
+#define IDC_BUTTON_DATA_TOOL            1035
+#define IDC_EDIT_DATA_STRING            1036
+#define IDC_EDIT_HEX_STRING             1037
+#define IDC_EDIT_BINARY_STRING          1038
+#define IDC_CHECK_UPPER_CASE            1039
+#define IDC_CHECK_UPPER_CASE2           1040
+#define IDC_CHECK_LITTLE_ENDIAN         1040
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        134
+#define _APS_NEXT_RESOURCE_VALUE        136
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1035
+#define _APS_NEXT_CONTROL_VALUE         1040
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

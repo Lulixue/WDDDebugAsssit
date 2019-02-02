@@ -70,6 +70,7 @@ class CDebugAssistDlg : public CDialogEx
 public:
 	CDebugAssistDlg(CWnd* pParent = nullptr);	// standard constructor
 
+    ~CDebugAssistDlg();
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_DEBUGASSIST_DIALOG };
@@ -186,4 +187,5 @@ protected:
     afx_msg LRESULT OnUmsgUpdateDestDriverDir(WPARAM wParam, LPARAM lParam);
 public:
     afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
+    afx_msg void OnBnClickedButtonDataTool();
 };
