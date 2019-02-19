@@ -54,8 +54,9 @@
 #define IDC_EDIT_HEX_STRING             1037
 #define IDC_EDIT_BINARY_STRING          1038
 #define IDC_CHECK_UPPER_CASE            1039
-#define IDC_CHECK_UPPER_CASE2           1040
 #define IDC_CHECK_LITTLE_ENDIAN         1040
+#define IDC_CHECK_HEX_ONLY              1041
+#define IDC_EDIT_BINARY_LINE            1042
 
 // Next default values for new objects
 // 
@@ -63,7 +64,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        136
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1040
+#define _APS_NEXT_CONTROL_VALUE         1043
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

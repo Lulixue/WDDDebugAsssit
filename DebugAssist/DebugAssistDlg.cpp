@@ -1073,6 +1073,7 @@ void CDebugAssistDlg::EnableCtrls(BOOL bEnable)
 			IDC_RICHEDIT_LOG, IDC_COMBO_DEBUGGEE_IP, IDC_COMBO_DEBUGGEE_PORT, IDC_EDIT_DST_FILENAME,
 			IDC_BUTTON_TEST_IP, IDC_BUTTON_BACKSTAGE_ADMIN, IDC_BUTTON_REFRESH, IDC_BUTTON_UEFI_DIR,
 			IDC_BUTTON_BROWSE_FWFITMERGED, IDC_COMBO_FWFITM_PATH, IDC_BUTTON_DD_FLASH,
+            IDC_BUTTON_DATA_TOOL
 	};
 
 	int size = sizeof(CONTROLS) / sizeof(UINT);
@@ -1763,7 +1764,7 @@ void CDebugAssistDlg::OnBnClickedButtonDataTool()
 {
     if ((g_pDlgDataTool != NULL) && g_pDlgDataTool->IsWindowVisible())
     {
-        g_pDlgDataTool->ShowWindow(SW_NORMAL);
+        g_pDlgDataTool->ShowWindow(SW_SHOWNORMAL);
     }
     else {
         g_pDlgDataTool = new CDialogDataTool();

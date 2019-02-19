@@ -24,7 +24,9 @@ protected:
 private:
     LPCWSTR IntToChar(int value);
     int CharToInt(CString buf);
-    void UpdateFromHex();
+    BOOL UpdateFromHex();
+    BOOL UpdateFromBinaryLine();
+    CString ToBinLine(long value, BOOL bLittleEndian, BOOL b4Bits = FALSE);
 public:
     afx_msg void OnBnClickedButtonTranslate();
     CEdit m_editDataString;
@@ -37,4 +39,10 @@ public:
     afx_msg void OnNcDestroy();
     afx_msg void OnEnChangeEditHexString();
     afx_msg void OnEnKillfocusEditHexString();
+    CButton m_chkNumberMode;
+    afx_msg void OnBnClickedCheckHexOnly();
+    CEdit m_editBinaryLine;
+    afx_msg void OnEnChangeEditBinaryLine();
+    afx_msg void OnEnChangeEditDataString();
+    afx_msg void OnBnClickedButtonReset();
 };
