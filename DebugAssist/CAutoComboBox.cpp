@@ -579,6 +579,11 @@ int CAutoComboBox::CompareItem(LPCOMPAREITEMSTRUCT lpCompareItemStruct)
     return nResult;
 }
 
+void CAutoComboBox::ResetContent()
+{
+    CComboBox::ResetContent();
+    Invalidate();
+}
 
 BOOL CAutoComboBox::IsCaretInWindow() const
 {
@@ -594,16 +599,15 @@ BOOL CAutoComboBox::IsCaretInWindow() const
     return (rect.PtInRect(pt));
 }
 
-BOOL CAutoComboBox::PreTranslateMessage(MSG* pMsg)
-{
-    return CComboBox::PreTranslateMessage(pMsg);
-}
 
 
 afx_msg LRESULT CAutoComboBox::OnUmsgListboxMousePosition(WPARAM wParam, LPARAM lParam)
 {
     if (m_bMouseHoverOnDelBtn && (wParam == -1))//如果是单击消息，并且鼠标当前停留在下拉按钮里
     {
+        CString strSelected;
+        GetLBText(GetCurSel(), strSelected);
+        ::PostMessage(GetParent()->GetSafeHwnd(), UMSG_COMBO_STRING_DELETE, (WPARAM)(new CString(strSelected)), (LPARAM)GetDlgCtrlID());
         this->DeleteString(GetCurSel());
         this->SelectString(-1, m_strLastSelected);
         return 1;

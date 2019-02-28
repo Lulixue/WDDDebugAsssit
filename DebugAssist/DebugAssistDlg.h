@@ -188,4 +188,8 @@ protected:
 public:
     afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
     afx_msg void OnBnClickedButtonDataTool();
+protected:
+    afx_msg LRESULT OnUmsgComboStringDelete(WPARAM wParam, LPARAM lParam);
+public:
+    virtual BOOL PreTranslateMessage(MSG* pMsg);
 };

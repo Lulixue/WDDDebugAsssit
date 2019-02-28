@@ -202,6 +202,7 @@ BEGIN_MESSAGE_MAP(CDebugAssistDlg, CDialogEx)
     ON_MESSAGE(UMSG_UPDATE_DEST_DRIVER_DIR, &CDebugAssistDlg::OnUmsgUpdateDestDriverDir)
     ON_WM_GETMINMAXINFO()
     ON_BN_CLICKED(IDC_BUTTON_DATA_TOOL, &CDebugAssistDlg::OnBnClickedButtonDataTool)
+    ON_MESSAGE(UMSG_COMBO_STRING_DELETE, &CDebugAssistDlg::OnUmsgComboStringDelete)
 END_MESSAGE_MAP()
 
 
@@ -1773,3 +1774,47 @@ void CDebugAssistDlg::OnBnClickedButtonDataTool()
     }
 }
 
+
+
+afx_msg LRESULT CDebugAssistDlg::OnUmsgComboStringDelete(WPARAM wParam, LPARAM lParam)
+{
+    int ctrlID = (int)lParam;
+    if (m_cbDestinationDir.GetDlgCtrlID() == ctrlID)
+    {
+        CString *pStr = (CString *)wParam;
+        m_setDriverDestDirs.erase(*pStr);
+        delete pStr;
+    }
+    return 0;
+}
+
+
+BOOL CDebugAssistDlg::PreTranslateMessage(MSG* pMsg)
+{
+    // TODO: Add your specialized code here and/or call the base class
+    static bool m_ctrl_down = false;//此函数第一次调用的时候初始化
+
+    if (pMsg->message == WM_KEYDOWN)
+    {
+
+        switch (pMsg->wParam)
+        {
+            //VK_A - VK_Z are the same as ASCII 'A' - 'Z' (0x41 - 0x5A) 不区分大小写
+
+        case 'E'://Ctrl + A
+            if (m_ctrl_down)
+            {
+                OnBnClickedButtonEjectDrive();
+                return TRUE;
+            }
+            break;
+        case VK_CONTROL:
+            m_ctrl_down = true;
+            break;
+        default:
+            break;
+        }
+    }
+
+    return CDialogEx::PreTranslateMessage(pMsg);
+}

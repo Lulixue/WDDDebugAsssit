@@ -4,6 +4,7 @@
 using std::set;
 
 #define UMSG_COMBO_SEL_CHANGE		(WM_USER + 0x1234)
+#define UMSG_COMBO_STRING_DELETE	(WM_USER + 0x1235)
 #define UMSG_LISTBOX_MOUSE_POSITION (WM_USER + 0x300)
 #define UMSG_EDITBOX_MOUSE_ACTION   (WM_USER + 0x301)
 
@@ -56,6 +57,7 @@ private:
     const static UINT TIMER_REFRESH_BOX = 1;
 
 public:
+    void ResetContent();
 	int SetCurSel(int nSelect);
 	CString GetLastSelected() const { return m_strLastSelected; }
 	void SetLastSelected(CString item) { m_strLastSelected = item;  }
@@ -87,7 +89,6 @@ public:
     afx_msg void OnMouseMove(UINT nFlags, CPoint point);
     virtual void DrawItem(LPDRAWITEMSTRUCT /*lpDrawItemStruct*/);
     virtual int CompareItem(LPCOMPAREITEMSTRUCT /*lpCompareItemStruct*/);
-    virtual BOOL PreTranslateMessage(MSG* pMsg);
 protected:
     afx_msg LRESULT OnUmsgListboxMousePosition(WPARAM wParam, LPARAM lParam);
 public:

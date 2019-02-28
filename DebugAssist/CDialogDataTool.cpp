@@ -155,6 +155,7 @@ BOOL CDialogDataTool::UpdateFromBinaryLine()
     CString strData;
     m_editBinaryLine.GetWindowTextW(strBin);
 
+    CString strLength;
     int length = strBin.GetLength();
     int base = 1;
     wchar_t single;
@@ -180,6 +181,8 @@ BOOL CDialogDataTool::UpdateFromBinaryLine()
     }
     strData.Format(L"%d", value);
     m_editDataString.SetWindowTextW(strData);
+    strLength.Format(L"Length: %d", length);
+    SetDlgItemText(IDC_STATIC_LENGTH, strLength);
     return TRUE;
 }
 
