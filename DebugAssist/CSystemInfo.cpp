@@ -310,12 +310,12 @@ int CSystemInfo::GetNetworkTraffic()
 
 CString CSystemInfo::GetUpTraf() const
 {
-	return CCommon::DataSizeToString(m_in_speed);
+	return CCommon::DataSizeToString(m_out_speed);
 }
 
 CString CSystemInfo::GetDownTraf() const
 {
-	return CCommon::DataSizeToString(m_out_speed);
+	return CCommon::DataSizeToString(m_in_speed);
 }
 
 

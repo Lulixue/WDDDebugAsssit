@@ -542,7 +542,7 @@ unsigned WINAPI ThreadUpdateSystemInfo(LPVOID lP)
 		SYSINFO.GetNetworkTraffic();
 
 		PostMessage(g_hwndDebug, UMSG_UPDATE_SYSTEM_STATUS, 0, 0);
-		Sleep(500);
+		Sleep(1000);
 	}
 	return 0;
 }
@@ -1353,6 +1353,11 @@ void CDebugAssistDlg::OnBnClickedButtonReplace()
 		MessageBox(TEXT("Source File Not Exist!"), TEXT("Error"), MB_ICONSTOP);
 		return;
 	}
+    if (!IsFileDirExist(destPath) &&
+        (IDYES != MessageBox(L"Destinate File Not Exist, Continue?", L"Warning", MB_ICONSTOP | MB_YESNO)))
+    {
+        return;
+    }
 
 	debugInfo.Format(L"Copy File: \r\nSource: %s\r\nDestination: %s\r\n", srcPath, destPath);
 	AppendDebug(debugInfo);
