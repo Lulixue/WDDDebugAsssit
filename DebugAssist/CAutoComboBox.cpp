@@ -415,8 +415,8 @@ void CAutoComboBox::OnPaint()
     BOOL bListDropped = GetDroppedState();
     BOOL bCurseInCtrl = FALSE;
 
-    if (m_bIsDropList)
-        TRACE("OnPaint: DropList: %d, ListDropped: %d, Enable: %d, EditFocuse:%d,  Over: %d, ArrowOver: %d\n", m_bIsDropList, bListDropped, IsWindowEnabled(), m_bIsEditFocused, m_bMouseOverBox, m_bMouseOverArrow);
+  /*  if (m_bIsDropList)
+        TRACE("OnPaint: DropList: %d, ListDropped: %d, Enable: %d, EditFocuse:%d,  Over: %d, ArrowOver: %d\n", m_bIsDropList, bListDropped, IsWindowEnabled(), m_bIsEditFocused, m_bMouseOverBox, m_bMouseOverArrow);*/
 
     if (!IsWindowEnabled())
     {

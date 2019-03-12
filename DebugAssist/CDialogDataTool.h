@@ -22,7 +22,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
 private:
-    LPCWSTR IntToChar(int value);
+    CString IntToChar(int value);
     int CharToInt(CString buf);
     BOOL UpdateFromHex();
     BOOL UpdateFromBinaryLine();

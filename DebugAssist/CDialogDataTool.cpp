@@ -50,7 +50,7 @@ END_MESSAGE_MAP()
 
 // CDialogDataTool message handlers
 
-LPCWSTR CDialogDataTool::IntToChar(int value)
+CString CDialogDataTool::IntToChar(int value)
 {
     CString ret;
     switch (value)
@@ -106,7 +106,7 @@ BOOL CDialogDataTool::UpdateFromHex()
     CString strData;
     m_editHexString.GetWindowTextW(strHex);
 
-    CString strChar;
+    CString strItem;
     WCHAR single;
     WCHAR hexBuf[10] = { 0 };
     int length = strHex.GetLength();
@@ -118,19 +118,21 @@ BOOL CDialogDataTool::UpdateFromHex()
         if ((single != L',') &&
             (single != L' '))
         {
-            strChar.AppendChar(single);
+            strItem.AppendChar(single);
         }
 
         if ((single == L',') ||
             (single == L' ') || 
             (i == length-1))
         {
-            if (strChar.IsEmpty())
+            strItem = strItem.MakeLower();
+            strItem.Replace(L"0x", L"");
+            if (strItem.IsEmpty())
             {
                 continue;
             }
             memset(hexBuf, 0, sizeof(hexBuf));
-            ret = wcstol(strChar, NULL, 16);
+            ret = wcstol(strItem, NULL, 16);
 
             if (bNumberMode)
             {
@@ -138,10 +140,9 @@ BOOL CDialogDataTool::UpdateFromHex()
             }
             else
             {
-                strData.AppendFormat(L"%c", IntToChar(ret));
+                strData.AppendFormat(L"%s", IntToChar(ret));
             }
-
-            strChar.Empty();
+            strItem.Empty();
         }
 
     }
