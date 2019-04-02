@@ -152,20 +152,21 @@ CDebugAssistDlg::CDebugAssistDlg(CWnd* pParent /*=nullptr*/)
 
 void CDebugAssistDlg::DoDataExchange(CDataExchange* pDX)
 {
-	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_COMBO_COMS, m_cbComPorts);
-	DDX_Control(pDX, IDC_RICHEDIT_LOG, m_reLog);
-	DDX_Control(pDX, IDC_COMBO_FFU_PATHS, m_cbFfuPaths);
-	DDX_Control(pDX, IDC_COMBO_DISKS, m_cbDisks);
-	DDX_Control(pDX, IDC_COMBO_WORKSPACE, m_cbWorkspaces);
-	DDX_Control(pDX, IDC_COMBO_SOURCE_SYS_FILE, m_cbDriverSourceFile);
-	DDX_Control(pDX, IDC_COMBO_DEST_DIR, m_cbDestinationDir);
-	DDX_Control(pDX, IDC_COMBO_EXTRA_PARAMS, m_cbExtraParams);
-	DDX_Control(pDX, IDC_COMBO_DEBUGGEE_IP, m_cbDebuggeeIPs);
-	DDX_Control(pDX, IDC_COMBO_DEBUGGEE_PORT, m_cbDebuggeePorts);
-	DDX_Control(pDX, IDC_BTN_FLASH, m_btnFlash);
-	DDX_Control(pDX, IDC_EDIT_DST_FILENAME, m_editDstFilename);
-	DDX_Control(pDX, IDC_COMBO_FWFITM_PATH, m_cbFwFitMergedPaths);
+    CDialogEx::DoDataExchange(pDX);
+    DDX_Control(pDX, IDC_COMBO_COMS, m_cbComPorts);
+    DDX_Control(pDX, IDC_RICHEDIT_LOG, m_reLog);
+    DDX_Control(pDX, IDC_COMBO_FFU_PATHS, m_cbFfuPaths);
+    DDX_Control(pDX, IDC_COMBO_DISKS, m_cbDisks);
+    DDX_Control(pDX, IDC_COMBO_WORKSPACE, m_cbWorkspaces);
+    DDX_Control(pDX, IDC_COMBO_SOURCE_SYS_FILE, m_cbDriverSourceFile);
+    DDX_Control(pDX, IDC_COMBO_DEST_DIR, m_cbDestinationDir);
+    DDX_Control(pDX, IDC_COMBO_EXTRA_PARAMS, m_cbDbgExecutables);
+    DDX_Control(pDX, IDC_COMBO_DEBUGGEE_IP, m_cbDebuggeeIPs);
+    DDX_Control(pDX, IDC_COMBO_DEBUGGEE_PORT, m_cbDebuggeePorts);
+    DDX_Control(pDX, IDC_BTN_FLASH, m_btnFlash);
+    DDX_Control(pDX, IDC_EDIT_DST_FILENAME, m_editDstFilename);
+    DDX_Control(pDX, IDC_COMBO_FWFITM_PATH, m_cbFwFitMergedPaths);
+    DDX_Control(pDX, IDC_CHECK_DEBUG_EXECUTABLE, m_chkDebugExe);
 }
 
 CDebugAssistDlg::~CDebugAssistDlg()
@@ -203,6 +204,7 @@ BEGIN_MESSAGE_MAP(CDebugAssistDlg, CDialogEx)
     ON_WM_GETMINMAXINFO()
     ON_BN_CLICKED(IDC_BUTTON_DATA_TOOL, &CDebugAssistDlg::OnBnClickedButtonDataTool)
     ON_MESSAGE(UMSG_COMBO_STRING_DELETE, &CDebugAssistDlg::OnUmsgComboStringDelete)
+    ON_BN_CLICKED(IDC_CHECK_DEBUG_EXECUTABLE, &CDebugAssistDlg::OnBnClickedCheckDebugExecutable)
 END_MESSAGE_MAP()
 
 
@@ -369,7 +371,7 @@ void CDebugAssistDlg::LoadIni()
 	LoadComboStrings(m_cbWorkspaces, TEXT("Workspace"));
 	LoadComboStrings(m_cbDriverSourceFile, TEXT("DriverSource"));
 	LoadComboStrings(m_setDriverDestDirs, TEXT("DriverDestDir"));
-	LoadComboStrings(m_cbExtraParams, TEXT("WindbgExtraParam"));
+	LoadComboStrings(m_cbDbgExecutables, TEXT("DbgExecutable"));
 	LoadComboStrings(m_cbDebuggeeIPs, TEXT("DebuggeeIP"));
 	LoadComboStrings(m_cbDebuggeePorts, TEXT("DebuggeePort"));
 	LoadComboStrings(m_cbFwFitMergedPaths, TEXT("UbootPath"));
@@ -504,7 +506,7 @@ void CDebugAssistDlg::SaveIni()
 	SaveComboStrings(m_cbWorkspaces, TEXT("Workspace"));
 	SaveComboStrings(m_cbDriverSourceFile, TEXT("DriverSource"));
 	SaveComboStrings(m_setDriverDestDirs, TEXT("DriverDestDir"));
-	SaveComboStrings(m_cbExtraParams, TEXT("WindbgExtraParam"));
+	SaveComboStrings(m_cbDbgExecutables, TEXT("DbgExecutable"));
 	SaveComboStrings(m_cbDebuggeeIPs, TEXT("DebuggeeIP"));
 	SaveComboStrings(m_cbDebuggeePorts, TEXT("DebuggeePort"));
 	SaveComboStrings(m_cbFwFitMergedPaths, TEXT("UbootPath"));
@@ -643,38 +645,46 @@ HCURSOR CDebugAssistDlg::OnQueryDragIcon()
 }
 
 
-
+BOOL IsExistProcess(CString szProcessName);
 void CDebugAssistDlg::OnBnClickedBtnComDbg()
 {
-
 	CString strComPort;
 	CString strWorkspace;
-	CString strExtraParams;
+	CString strExecutable;
+    BOOL bDbgExe = GetDbgExeEnable();
 
 	m_cbComPorts.GetWindowTextW(strComPort);
 	m_cbWorkspaces.GetWindowTextW(strWorkspace);
-	m_cbExtraParams.GetWindowTextW(strExtraParams);
+	m_cbDbgExecutables.GetWindowTextW(strExecutable);
 
 
-	CloseSpecificComWnd(strComPort);
+	CloseSpecificComWnd(bDbgExe ? strExecutable : strComPort, !bDbgExe);
 
 	PARAM_T para;
 	para.nType = CMD_JUST_RETURN;
-	para.strCmd.Format(TEXT("windbg.exe -a -d -b -v -k com:port=%s,baud=921600 -y \"cache*c:\\symbols; SRV*http://symweb\""), strComPort);
+    if (bDbgExe)
+    {
+        if (!IsExistProcess(strExecutable))
+        {
+            MessageBox(L"Process Not Running!", L"Warning", MB_ICONSTOP);
+            return;
+        }
+
+        para.strCmd.Format(TEXT("windbg.exe -a -v -pn %s -y \"cache*c:\\symbols; SRV*http://symweb\""), strExecutable);
+        m_mapWindbgParameter[strExecutable] = strWorkspace;
+    }
+    else
+    {
+        para.strCmd.Format(TEXT("windbg.exe -a -d -b -v -k com:port=%s,baud=921600 -y \"cache*c:\\symbols; SRV*http://symweb\""), strComPort);
+        m_mapWindbgParameter[strComPort] = strWorkspace;
+    }
 
 	if (!strWorkspace.IsEmpty()) 
 	{
 		para.strCmd.AppendFormat(TEXT(" -W %s"), strWorkspace);
 	}
-	m_mapWindbgParameter[strComPort] = strWorkspace;
-	if (!strExtraParams.IsEmpty())
-	{
-		para.strCmd.AppendFormat(TEXT(" %s"), strExtraParams);
-	}
 
 	para.bRet = CProcessInterface::CreateMyProcess(&para);
-	
-
 }
 
 
@@ -882,7 +892,7 @@ void CDebugAssistDlg::CleanEnvironment()
 
 vector<HWND> GetProcessInfo(CString processName);
 
-void CDebugAssistDlg::CloseSpecificComWnd(CString comPort)
+void CDebugAssistDlg::CloseSpecificComWnd(CString strKeyWord, BOOL bComPort)
 {
 	HWND hWnd_Dlg = NULL;
 	WCHAR text[MAX_PATH] = { 0 };
@@ -890,8 +900,15 @@ void CDebugAssistDlg::CloseSpecificComWnd(CString comPort)
 	vector<HWND> vecHWND;
 	vector<HWND>::const_iterator cit;
 
-	comPort = comPort.MakeUpper();
-	titleKey.Format(L"com:port=%s", comPort);
+    if (!bComPort)
+    {
+        titleKey.Format(L"Process %s", strKeyWord);
+    }
+    else
+    {
+        titleKey.Format(L"com:port=%s", strKeyWord);
+    }
+    titleKey = titleKey.MakeUpper();
 	
 
 	vecHWND = GetProcessInfo(L"windbg.exe");
@@ -903,6 +920,7 @@ void CDebugAssistDlg::CloseSpecificComWnd(CString comPort)
 		::GetWindowText(hWnd_Dlg, text, MAX_PATH);
 
 		CString strTitle(text);
+        strTitle = strTitle.MakeUpper();
 		if (strTitle.Find(titleKey) != -1)
 		{
 			::PostMessage(hWnd_Dlg, WM_CLOSE, 0, 0);
@@ -1074,7 +1092,7 @@ void CDebugAssistDlg::EnableCtrls(BOOL bEnable)
 			IDC_RICHEDIT_LOG, IDC_COMBO_DEBUGGEE_IP, IDC_COMBO_DEBUGGEE_PORT, IDC_EDIT_DST_FILENAME,
 			IDC_BUTTON_TEST_IP, IDC_BUTTON_BACKSTAGE_ADMIN, IDC_BUTTON_REFRESH, IDC_BUTTON_UEFI_DIR,
 			IDC_BUTTON_BROWSE_FWFITMERGED, IDC_COMBO_FWFITM_PATH, IDC_BUTTON_DD_FLASH,
-            IDC_BUTTON_DATA_TOOL
+            IDC_BUTTON_DATA_TOOL, IDC_CHECK_DEBUG_EXECUTABLE
 	};
 
 	int size = sizeof(CONTROLS) / sizeof(UINT);
@@ -1087,6 +1105,8 @@ void CDebugAssistDlg::EnableCtrls(BOOL bEnable)
 			pWnd->EnableWindow(bEnable);
 		}
 	}
+    if (bEnable)
+        UpdateWindbgTypeCombos();
 }
 
 int CDebugAssistDlg::GetComList()
@@ -1620,7 +1640,8 @@ void CDebugAssistDlg::OnBnClickedButtonUefiDir()
 void CDebugAssistDlg::UpdateWindbgParameter()
 {
 	CString strCom;
-	m_cbComPorts.GetWindowTextW(strCom);
+    CComboBox *pBox = GetDbgExeEnable() ? &m_cbDbgExecutables : &m_cbComPorts;
+    pBox->GetWindowTextW(strCom);
 
 	map<CString, CString>::const_iterator cit = m_mapWindbgParameter.begin();
 	for (; cit != m_mapWindbgParameter.end(); cit++)
@@ -1641,6 +1662,10 @@ afx_msg LRESULT CDebugAssistDlg::OnUmsgComSelChange(WPARAM wParam, LPARAM lParam
 	{
 		UpdateWindbgParameter();
 	}
+    else if (m_cbDbgExecutables.GetDlgCtrlID() == ctrlID)
+    {
+        UpdateWindbgParameter();
+    }
 	else if (ctrlID == m_cbDriverSourceFile.GetDlgCtrlID())
 	{
 		int dft = UpdateDestDriverFilename();
@@ -1822,4 +1847,17 @@ BOOL CDebugAssistDlg::PreTranslateMessage(MSG* pMsg)
     }
 
     return CDialogEx::PreTranslateMessage(pMsg);
+}
+
+void CDebugAssistDlg::UpdateWindbgTypeCombos()
+{
+    m_cbDbgExecutables.EnableWindow(GetDbgExeEnable());
+    m_cbComPorts.EnableWindow(!GetDbgExeEnable());
+}
+
+void CDebugAssistDlg::OnBnClickedCheckDebugExecutable()
+{
+    UpdateWindbgTypeCombos();
+    int ctrlID = GetDbgExeEnable() ? m_cbDbgExecutables.GetDlgCtrlID() : m_cbComPorts.GetDlgCtrlID();
+    PostMessage(UMSG_COMBO_SEL_CHANGE, (WPARAM)ctrlID, 0);
 }

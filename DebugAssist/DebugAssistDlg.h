@@ -87,7 +87,9 @@ public:
 
 // Implementation
 private:
-	void CloseSpecificComWnd(CString comPort);
+    void UpdateWindbgTypeCombos();
+    BOOL GetDbgExeEnable() const {  return (m_chkDebugExe.GetCheck() == BST_CHECKED); }
+	void CloseSpecificComWnd(CString strKeyWord, BOOL bComPort = TRUE);
 	void GetPhysicalDriveCount();
 	BOOL GetFileTime(CString path, SYSTEMTIME &st) const;
 	void AppendDebug(WPARAM wParam, LPARAM lParam);
@@ -163,7 +165,7 @@ public:
 	CAutoComboBox m_cbDestinationDir;
 	afx_msg void OnBnClickedButtonBrowseDestDir();
 	afx_msg void OnBnClickedButtonReplace();
-	CAutoComboBox m_cbExtraParams;
+	CAutoComboBox m_cbDbgExecutables;
 	afx_msg void OnBnClickedButtonEjectDrive();
 	CAutoComboBox m_cbDebuggeeIPs;
 	CAutoComboBox m_cbDebuggeePorts;
@@ -192,4 +194,6 @@ protected:
     afx_msg LRESULT OnUmsgComboStringDelete(WPARAM wParam, LPARAM lParam);
 public:
     virtual BOOL PreTranslateMessage(MSG* pMsg);
+    afx_msg void OnBnClickedCheckDebugExecutable();
+    CButton m_chkDebugExe;
 };
