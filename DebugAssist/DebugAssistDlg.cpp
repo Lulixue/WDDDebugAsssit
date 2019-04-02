@@ -277,20 +277,37 @@ void CDebugAssistDlg::LoadWindbgParameter()
 {
 	CString strIniPath = m_strSettingIniPath;
 
-	WCHAR strBuffer[MAX_PATH] = { 0 };
-	int nRet;
+	WCHAR *pStrBuffer = new WCHAR[2048];
+    WCHAR strValue[MAX_PATH] = { 0 };
+	int nSize;
+    int nRet;
 
-	CString port;
-	for (int i = 1; i < MAX_COM_PORT_NUM; i++)
-	{
-		port.Format(L"COM%d", i);
-		nRet = GetPrivateProfileString(COM_PARA_NAME, port, TEXT(""),
-			strBuffer, MAX_PATH, strIniPath);
-		if (nRet > 0) {
-			m_mapWindbgParameter[port] = strBuffer;
-		}
+	CString strKey;
+
+    memset(pStrBuffer, 0, sizeof(WCHAR) * 2048);
+    nSize = GetPrivateProfileString(COM_PARA_NAME, NULL, TEXT(""),
+        pStrBuffer, 2048, strIniPath);
+    for (int i = 0; i < nSize; i++)
+    { 
+        if (pStrBuffer[i] == '\0')
+        {
+            if (!strKey.IsEmpty())
+            {
+                nRet = GetPrivateProfileString(COM_PARA_NAME, strKey, TEXT(""),
+                    strValue, MAX_PATH, strIniPath);
+                if (nRet > 0) {
+                    m_mapWindbgParameter[strKey] = strValue;
+                }
+                strKey.Empty();
+                memset(strValue, 0, sizeof(WCHAR) * MAX_PATH);
+            }
+        }
+        else
+        {
+            strKey.AppendChar(pStrBuffer[i]);
+        }
 	}
-	
+    delete pStrBuffer;
 }
 
 void CDebugAssistDlg::SaveWindbgParameter()
