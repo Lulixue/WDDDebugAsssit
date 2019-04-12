@@ -1859,13 +1859,14 @@ BOOL CDebugAssistDlg::PreTranslateMessage(MSG* pMsg)
             m_ctrl_down = true;
             break;
         default:
+            m_ctrl_down = false;
             break;
         }
     }
 
     return CDialogEx::PreTranslateMessage(pMsg);
 }
-
+ 
 void CDebugAssistDlg::UpdateWindbgTypeCombos()
 {
     m_cbDbgExecutables.EnableWindow(GetDbgExeEnable());
