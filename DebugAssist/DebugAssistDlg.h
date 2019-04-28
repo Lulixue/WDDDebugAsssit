@@ -81,12 +81,14 @@ public:
 
 public:
 	void CloseFormatWnds();
-	void UpdateStatusProc();
+	BOOL UpdateStatusProc();
 	void EnableCtrls(BOOL bEnable);
-	int RemoveUefiDrive();
+    void EjectDrive();
 
 // Implementation
 private:
+    int RemoveUefiDrive();
+    BOOL RemoveDisk(CString label, CString &info);
     void UpdateWindbgTypeCombos();
     BOOL GetDbgExeEnable() const {  return (m_chkDebugExe.GetCheck() == BST_CHECKED); }
 	void CloseSpecificComWnd(CString strKeyWord, BOOL bComPort = TRUE);
@@ -97,7 +99,7 @@ private:
 	void LoadIni();
 	void SaveIni();
 	int GetComList();
-	void GetDiskList();
+	BOOL GetDiskList();
 	BOOL GetDrivePhysicalNo();
 	int ToDriveFileType(CString &strFilename) const;
 	int UpdateDestDriverFilename();
@@ -124,6 +126,7 @@ private:
 	void ComboboxToSet(CAutoComboBox &box, set<CString> &setItems);
 	void ComboboxToVector(CAutoComboBox &box, vector<CString> &vecItems);
 private:
+    CString m_strDiskEfi;
 	int m_nPhysicalDriveNo;
 	CString m_strAppDataConfigDir;
 	CString m_strSettingIniPath;

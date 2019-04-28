@@ -542,9 +542,16 @@ unsigned WINAPI ThreadUpdateStatus(LPVOID lP)
 	}
 
 	bThreadRunning = TRUE;
-	Sleep(500);
 	pDlg->EnableCtrls(FALSE);
-	pDlg->UpdateStatusProc();
+    for (int i = 0; i < 2; i++)
+    {
+        Sleep(500);
+        if (pDlg->UpdateStatusProc())
+        {
+            break;
+        }
+
+    }
 	pDlg->EnableCtrls(TRUE);
 	bThreadRunning = FALSE;
 	THREAD_EXIT();
@@ -705,7 +712,7 @@ void CDebugAssistDlg::OnBnClickedBtnComDbg()
 }
 
 
-void CDebugAssistDlg::GetDiskList()
+BOOL CDebugAssistDlg::GetDiskList()
 {
 	TCHAR buf[100];
 	DWORD len = GetLogicalDriveStrings(sizeof(buf) / sizeof(TCHAR), buf);
@@ -731,7 +738,9 @@ void CDebugAssistDlg::GetDiskList()
 	CString driverPath;
 	CString drivesInfo;
 
+    BOOL bSDDetected = FALSE;
 	m_cbDestinationDir.ResetContent();
+    m_strDiskEfi = L"";
 	vector<DISK_T>::const_iterator cit = m_vecDisks.begin();
 	for (int i = 0; cit != m_vecDisks.end(); cit++, i++)
 	{
@@ -740,6 +749,8 @@ void CDebugAssistDlg::GetDiskList()
 		{
 			SetComboText(m_cbDisks, cit->root);
 			m_setDriverDestDirs.insert(cit->root);
+            bSDDetected = TRUE;
+            m_strDiskEfi = cit->root;
 		}
 		else if (!cit->VolumnLabel.CompareNoCase(TEXT("MainOS")))
 		{
@@ -750,11 +761,13 @@ void CDebugAssistDlg::GetDiskList()
 				//AddComboString(m_cbDestinationDir, driverPath);
 				m_setDriverDestDirs.insert(driverPath);
 			}
+            bSDDetected = TRUE;
 		}
 	}
 	drivesInfo.Format(L"Found %d disks:\r\n%s", m_vecDisks.size(), CString(drivesInfo));
 	AppendDebug(drivesInfo);
 
+    return bSDDetected;
 }
 
 void CDebugAssistDlg::GetPhysicalDriveCount()
@@ -1024,27 +1037,34 @@ void CDebugAssistDlg::ComboboxToSet(CAutoComboBox &box, set<CString> &setItems)
 }
 
 CCriticalSection g_cs;
-void CDebugAssistDlg::UpdateStatusProc()
+BOOL CDebugAssistDlg::UpdateStatusProc()
 {
-	CString port;
-	CString lastPort;
-	vector<CString> vecComPorts;
-	CString lastDir;
+    CString port;
+    CString lastPort;
+    vector<CString> vecComPorts;
+    CString lastDir;
+    BOOL bSdDetected = FALSE;
+    BOOL bPhyDriverDetected = FALSE;
 
-	g_cs.Lock();
-	m_cbComPorts.GetWindowTextW(lastPort);
-	m_cbDestinationDir.GetWindowTextW(lastDir);
-	ComboboxToSet(m_cbDestinationDir, m_setDriverDestDirs);
-	ComboboxToVector(m_cbComPorts, vecComPorts);
+    g_cs.Lock();
+    m_cbComPorts.GetWindowTextW(lastPort);
+    m_cbDestinationDir.GetWindowTextW(lastDir);
+    ComboboxToSet(m_cbDestinationDir, m_setDriverDestDirs);
+    ComboboxToVector(m_cbComPorts, vecComPorts);
 
-	GetComList();
-	GetDiskList();
+    GetComList();
 
-	GetPhysicalDriveCount();
-	if (!GetDrivePhysicalNo())
-	{
-		m_btnFlash.EnableWindow(FALSE);
-	}
+    GetPhysicalDriveCount();
+    if (!GetDrivePhysicalNo())
+    {
+        m_btnFlash.EnableWindow(FALSE);
+    }
+    else
+    {
+        bPhyDriverDetected = TRUE;
+    }
+    bSdDetected = GetDiskList();
+    
 
 	UINT size = m_cbComPorts.GetCount();
 	int sel = 0;
@@ -1097,6 +1117,7 @@ void CDebugAssistDlg::UpdateStatusProc()
 
 	//PostMessage(UMSG_UPDATE_SYSTEM_STATUS, 0, 0);
 	g_cs.Unlock();
+    return  bSdDetected == bPhyDriverDetected;
 }
 
 void CDebugAssistDlg::EnableCtrls(BOOL bEnable)
@@ -1125,6 +1146,7 @@ void CDebugAssistDlg::EnableCtrls(BOOL bEnable)
     if (bEnable)
         UpdateWindbgTypeCombos();
 }
+
 
 int CDebugAssistDlg::GetComList()
 {
@@ -1459,6 +1481,89 @@ inline BOOL IsStorageDevice(CString &name)
 		(name.Find(L"Storage") != -1));
 }
 
+inline BOOL IsCardReader(CString &name)
+{
+    return (name.Find(L"读卡器") != -1) ||
+        (name.Find(L"Card Reader") != -1);
+}
+
+#include <WinIoCtl.h>
+BOOL CDebugAssistDlg::RemoveDisk(CString label, CString &info)
+{
+    HANDLE hDevice;//handle to the drive to be examined
+    BOOL lockResult;//lock results flag
+    BOOL dismountResult;//dismount results flag
+    BOOL unlockResult;//unlock results flag
+    DWORD cbReturned;//discard results
+    DWORD dwError;
+    CString strDrive;
+    
+    label.Replace(L"\\", L"");
+    strDrive.Format(L"\\\\.\\%s", label);
+
+    hDevice = CreateFile(strDrive, //drive to open   
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,//share mode
+        NULL,         //default security attributes
+        OPEN_EXISTING,//disposition
+        0,            //file attributes.
+        NULL);       // don't copy any file's attributes   
+
+    if (hDevice == INVALID_HANDLE_VALUE)//can't open the drive   
+    {
+        dwError = GetLastError();
+        info.Format(L"Failed to open %s!", label);
+        return FALSE;
+    }
+    //当驱动器无读写时，即可锁定卷
+    lockResult = DeviceIoControl(
+        hDevice,
+        FSCTL_LOCK_VOLUME,
+        NULL,
+        0,
+        NULL,
+        0,
+        &cbReturned,
+        NULL);
+
+    if (!lockResult)
+    {
+        TRACE("Fail to lock volume!\n");
+        info.Format(L"Failed to lock volume %s!", label);
+        return FALSE;
+    }
+   
+    //锁定成功即可将卷卸除
+    dismountResult = DeviceIoControl(
+        hDevice,
+        IOCTL_STORAGE_EJECT_MEDIA,
+        NULL,
+        0,
+        NULL,
+        0,
+        &cbReturned,
+        NULL);
+   
+    return TRUE;
+}
+
+void CDebugAssistDlg::EjectDrive()
+{
+    if (m_strDiskEfi.IsEmpty())
+    {
+        return;
+    }
+
+    CString strInfo;
+    BOOL bRet = RemoveDisk(m_strDiskEfi, strInfo);
+    if (bRet)
+    {
+        strInfo = L"Successfully to remove disk!";
+    }
+    AppendDebug(strInfo);
+    MessageBox(strInfo, bRet ? TEXT("Info") : L"Error",
+        bRet ? MB_ICONINFORMATION : MB_ICONERROR);
+}
 int CDebugAssistDlg::RemoveUefiDrive()
 {
 	HDEVINFO   hDevInfo;
@@ -1531,12 +1636,17 @@ int CDebugAssistDlg::RemoveUefiDrive()
 		}
 		TRACE(L"Device[%d]%s(%s), Disableable: %s, Removeable: %s\n", i, friendly_name, hwidBuf, YESORNO(IsDisableable(ulStatus)), YESORNO(IsRemoveable(ulStatus)));
 
-		if (!IsRemoveable(ulStatus) || !IsDisableable(ulStatus)) {
-			continue;
+        CString strName(friendly_name);
+        BOOL bToRemove = FALSE;
+		if (IsRemoveable(ulStatus) && IsDisableable(ulStatus)) {
+            if ((IsUSBDevice(strName) && IsStorageDevice(strName)))
+            {
+                bToRemove = TRUE;
+            }
 		}
 
-		CString strName(friendly_name);
-		if (IsUSBDevice(strName) && IsStorageDevice(strName)) {
+		if (IsCardReader(strName) || bToRemove) 
+        {
 			CString debugInfo;
 
 			pnpvietotype = PNP_VetoDevice;
@@ -1586,7 +1696,7 @@ unsigned WINAPI ThreadRemoveUefiDrive(LPVOID lP)
 {
 	CDebugAssistDlg *pDlg = (CDebugAssistDlg *)lP;
 	pDlg->EnableCtrls(FALSE);
-	pDlg->RemoveUefiDrive();
+    pDlg->EjectDrive();
 	pDlg->EnableCtrls(TRUE);
 
 	return 0;
