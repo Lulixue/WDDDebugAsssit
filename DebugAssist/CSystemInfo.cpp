@@ -503,7 +503,8 @@ BOOL CALLBACK MyEnumProc(HWND hWnd, LPARAM lParam)//枚举所有进程
 		GetClassName(hWnd, strTmp.GetBuffer(200), 200);
 		strTmp.ReleaseBuffer();
 
-		if (!strTmp.Compare(L"WinDbgFrameClass"))	// 具体可使用Spy++查看
+		if (!strTmp.Compare(L"WinDbgFrameClass") ||
+            !strTmp.Compare(L"PuTTY"))	    // 具体可使用Spy++查看
 		{
 			pInfo->hWnd = hWnd;
 			return FALSE;
@@ -554,7 +555,7 @@ HWND GetProcessHwndByPID(DWORD proccessId)
 	return hwndRet;
 }
 
-vector<HWND> GetProcessInfo(CString processName)
+vector<PROCESS_HWND_T> GetProcessInfo(CString processName)
 {
 	//创建进程快照(TH32CS_SNAPPROCESS表示创建所有进程的快照)
 	HANDLE hSnapShot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -566,11 +567,11 @@ vector<HWND> GetProcessInfo(CString processName)
 	//if(hProcessSnap == INVALID_HANDLE_VALUE)   无效的句柄  
 	if (!Process32First(hSnapShot, &pe))
 	{
-		return vector<HWND>();
+		return vector<PROCESS_HWND_T>();
 	}
 	processName.MakeLower();
 	BOOL clearprocess = FALSE;
-	vector<HWND> vechWnd;
+	vector<PROCESS_HWND_T> vechWnd;
 	//如果句柄有效  则一直获取下一个句柄循环下去 
 	while (Process32Next(hSnapShot, &pe))
 	{
@@ -580,12 +581,12 @@ vector<HWND> GetProcessInfo(CString processName)
 		char modPath[MAX_PATH] = { 0 };
 		if (!scTmp.Compare(processName))
 		{
-			DWORD dwProcessID = pe.th32ProcessID;
 
-			HWND hWnd = GetProcessHwnd(dwProcessID);
-
-			vechWnd.push_back(hWnd);
-
+            PROCESS_HWND_T pht;
+            pht.pid = pe.th32ProcessID;
+			pht.hwnd = GetProcessHwnd(pht.pid);
+            if (pht.hwnd != NULL)
+			    vechWnd.push_back(pht);
 		}
 	}
 	::CloseHandle(hSnapShot);

@@ -199,4 +199,5 @@ public:
     virtual BOOL PreTranslateMessage(MSG* pMsg);
     afx_msg void OnBnClickedCheckDebugExecutable();
     CButton m_chkDebugExe;
+    afx_msg void OnBnClickedBtnPutty();
 };

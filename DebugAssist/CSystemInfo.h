@@ -29,7 +29,11 @@ public:
 	static CString DataSizeToString(unsigned int size, SpeedUnit type = SpeedUnit::AUTO);
 };
 
-
+typedef struct
+{
+    HWND hwnd;
+    DWORD pid;
+}PROCESS_HWND_T;
 
 //±£´æÒ»¸öÍøÂçÁ¬½ÓÐÅÏ¢
 struct NetWorkConection

@@ -205,6 +205,7 @@ BEGIN_MESSAGE_MAP(CDebugAssistDlg, CDialogEx)
     ON_BN_CLICKED(IDC_BUTTON_DATA_TOOL, &CDebugAssistDlg::OnBnClickedButtonDataTool)
     ON_MESSAGE(UMSG_COMBO_STRING_DELETE, &CDebugAssistDlg::OnUmsgComboStringDelete)
     ON_BN_CLICKED(IDC_CHECK_DEBUG_EXECUTABLE, &CDebugAssistDlg::OnBnClickedCheckDebugExecutable)
+    ON_BN_CLICKED(IDC_BTN_PUTTY, &CDebugAssistDlg::OnBnClickedBtnPutty)
 END_MESSAGE_MAP()
 
 
@@ -670,6 +671,20 @@ HCURSOR CDebugAssistDlg::OnQueryDragIcon()
 
 
 BOOL IsExistProcess(CString szProcessName);
+
+void CDebugAssistDlg::OnBnClickedBtnPutty()
+{
+    CString strComPort;
+
+    m_cbComPorts.GetWindowTextW(strComPort);
+    CloseSpecificComWnd(strComPort, TRUE);
+    PARAM_T para;
+    para.nType = CMD_OPEN;
+    para.strCmd = L"putty";
+
+    para.bRet = CProcessInterface::CreateCmdWindow(&para);
+}
+
 void CDebugAssistDlg::OnBnClickedBtnComDbg()
 {
 	CString strComPort;
@@ -920,15 +935,17 @@ void CDebugAssistDlg::CleanEnvironment()
 }
 
 
-vector<HWND> GetProcessInfo(CString processName);
+vector<PROCESS_HWND_T> GetProcessInfo(CString processName);
 
 void CDebugAssistDlg::CloseSpecificComWnd(CString strKeyWord, BOOL bComPort)
 {
 	HWND hWnd_Dlg = NULL;
 	WCHAR text[MAX_PATH] = { 0 };
 	CString titleKey;
-	vector<HWND> vecHWND;
-	vector<HWND>::const_iterator cit;
+	vector<PROCESS_HWND_T> vecHWND;
+    vector<PROCESS_HWND_T> vecPutty;
+	vector<PROCESS_HWND_T>::const_iterator cit;
+    CString UpperKeyWord = strKeyWord.MakeUpper();
 
     if (!bComPort)
     {
@@ -939,18 +956,19 @@ void CDebugAssistDlg::CloseSpecificComWnd(CString strKeyWord, BOOL bComPort)
         titleKey.Format(L"com:port=%s", strKeyWord);
     }
     titleKey = titleKey.MakeUpper();
-	
 
 	vecHWND = GetProcessInfo(L"windbg.exe");
+    vecPutty = GetProcessInfo(L"putty.exe");
 	cit = vecHWND.begin();
 
 	for (; cit != vecHWND.end(); cit++)
 	{
-		hWnd_Dlg = *cit;
+		hWnd_Dlg = cit->hwnd;
 		::GetWindowText(hWnd_Dlg, text, MAX_PATH);
 
 		CString strTitle(text);
         strTitle = strTitle.MakeUpper();
+        memset(text, 0, sizeof(WCHAR) * MAX_PATH);
 		if (strTitle.Find(titleKey) != -1)
 		{
 			::PostMessage(hWnd_Dlg, WM_CLOSE, 0, 0);
@@ -958,6 +976,22 @@ void CDebugAssistDlg::CloseSpecificComWnd(CString strKeyWord, BOOL bComPort)
 			break;
 		}
 	}
+    cit = vecPutty.begin();
+    for (; cit != vecPutty.end(); cit++)
+    {
+        hWnd_Dlg = cit->hwnd;
+        ::GetWindowText(hWnd_Dlg, text, MAX_PATH);
+
+        CString strTitle(text);
+        strTitle = strTitle.MakeUpper();
+        memset(text, 0, sizeof(WCHAR) * MAX_PATH);
+        if (strTitle.Find(UpperKeyWord) != -1)
+        {
+            HANDLE handy;
+            handy = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, TRUE, cit->pid);
+            TerminateProcess(handy, 0);
+        }
+    }
 }
 
 void CDebugAssistDlg::CloseFormatWnds()
@@ -1493,7 +1527,6 @@ BOOL CDebugAssistDlg::RemoveDisk(CString label, CString &info)
     HANDLE hDevice;//handle to the drive to be examined
     BOOL lockResult;//lock results flag
     BOOL dismountResult;//dismount results flag
-    BOOL unlockResult;//unlock results flag
     DWORD cbReturned;//discard results
     DWORD dwError;
     CString strDrive;
@@ -1563,6 +1596,7 @@ void CDebugAssistDlg::EjectDrive()
     AppendDebug(strInfo);
     MessageBox(strInfo, bRet ? TEXT("Info") : L"Error",
         bRet ? MB_ICONINFORMATION : MB_ICONERROR);
+    RemoveUefiDrive();
 }
 int CDebugAssistDlg::RemoveUefiDrive()
 {
@@ -1645,7 +1679,7 @@ int CDebugAssistDlg::RemoveUefiDrive()
             }
 		}
 
-		if (IsCardReader(strName) || bToRemove) 
+		if (bToRemove) 
         {
 			CString debugInfo;
 
@@ -1989,3 +2023,4 @@ void CDebugAssistDlg::OnBnClickedCheckDebugExecutable()
     int ctrlID = GetDbgExeEnable() ? m_cbDbgExecutables.GetDlgCtrlID() : m_cbComPorts.GetDlgCtrlID();
     PostMessage(UMSG_COMBO_SEL_CHANGE, (WPARAM)ctrlID, 0);
 }
+
