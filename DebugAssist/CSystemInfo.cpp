@@ -597,7 +597,7 @@ BOOL IsExistProcess(CString szProcessName)
 {
     PROCESSENTRY32 processEntry32;
     HANDLE toolHelp32Snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (((int)toolHelp32Snapshot) != -1)
+    if (toolHelp32Snapshot != INVALID_HANDLE_VALUE)
     {
         processEntry32.dwSize = sizeof(processEntry32);
         if (Process32First(toolHelp32Snapshot, &processEntry32))

@@ -32,10 +32,10 @@ typedef struct
 {
 	CString strCmd; 
 	CString strReturn;
-	int nType;		
-	int nWaitMs;				// WaitForObject delay(ms)
-	DWORD nReadBytesCount;	// Specify ReadFile Bytes Count
-	BOOL bRet;
+	int nType { -1 };
+	int nWaitMs { 0 };				// WaitForObject delay(ms)
+	DWORD nReadBytesCount{ 0 };		// Specify ReadFile Bytes Count
+	BOOL bRet { false };
 }PARAM_T, *P_PARAM_T;
 
 class CProcessInterface

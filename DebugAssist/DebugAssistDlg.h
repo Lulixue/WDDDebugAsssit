@@ -127,7 +127,7 @@ private:
 	void ComboboxToVector(CAutoComboBox &box, vector<CString> &vecItems);
 private:
     CString m_strDiskEfi;
-	int m_nPhysicalDriveNo;
+	int m_nPhysicalDriveNo{ 0 };
 	CString m_strAppDataConfigDir;
 	CString m_strSettingIniPath;
 	vector<DISK_T> m_vecDisks;

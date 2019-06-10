@@ -82,7 +82,7 @@ void GetCompileDateTime()
     char szTmpTime[100] = { 0 };
     char szMonth[10] = { 0 };
     wchar_t szDateTime[250] = { 0 };
-    int iYear, iMonth, iDay;
+    int iYear, iMonth = 0, iDay;
     int iHour, iMin, iSec;
 
     //获取编译日期、时间 
@@ -308,7 +308,7 @@ void CDebugAssistDlg::LoadWindbgParameter()
             strKey.AppendChar(pStrBuffer[i]);
         }
 	}
-    delete pStrBuffer;
+    delete[] pStrBuffer;
 }
 
 void CDebugAssistDlg::SaveWindbgParameter()
@@ -855,7 +855,7 @@ DISK_T::DISK_T(CString r) : root(r)
 {
 	WCHAR label[50] = { 0 };
 	WCHAR FileSysName[20] = { 0 };
-	::GetVolumeInformation(root, label, 255, &SerialNumber, &MaxCLength, &FileSysFlag, FileSysName, 255);
+	::GetVolumeInformation(root, label, 50, &SerialNumber, &MaxCLength, &FileSysFlag, FileSysName, 20);
 
 	VolumnLabel = label;
 	FileSys = FileSysName;
@@ -1164,7 +1164,7 @@ void CDebugAssistDlg::EnableCtrls(BOOL bEnable)
 			IDC_RICHEDIT_LOG, IDC_COMBO_DEBUGGEE_IP, IDC_COMBO_DEBUGGEE_PORT, IDC_EDIT_DST_FILENAME,
 			IDC_BUTTON_TEST_IP, IDC_BUTTON_BACKSTAGE_ADMIN, IDC_BUTTON_REFRESH, IDC_BUTTON_UEFI_DIR,
 			IDC_BUTTON_BROWSE_FWFITMERGED, IDC_COMBO_FWFITM_PATH, IDC_BUTTON_DD_FLASH,
-            IDC_BUTTON_DATA_TOOL, IDC_CHECK_DEBUG_EXECUTABLE
+            IDC_BUTTON_DATA_TOOL, IDC_CHECK_DEBUG_EXECUTABLE, IDC_BTN_PUTTY
 	};
 
 	int size = sizeof(CONTROLS) / sizeof(UINT);
