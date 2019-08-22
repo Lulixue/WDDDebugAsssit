@@ -29,6 +29,8 @@
 #define IDC_BUTTON_REPLACE              1016
 #define IDC_COMBO_SOURCE_SYS_FILE       1017
 #define IDC_BUTTON_EJECT_DRIVE          1018
+#define IDC_COMBO_WORKSPACE2            1019
+#define IDC_COMBO_BAUDRATE              1019
 #define IDC_COMBO_DEBUGGEE_IP           1020
 #define IDC_COMBO_DEBUGGEE_PORT         1021
 #define IDC_BUTTON_TEST_IP              1022

@@ -152,21 +152,22 @@ CDebugAssistDlg::CDebugAssistDlg(CWnd* pParent /*=nullptr*/)
 
 void CDebugAssistDlg::DoDataExchange(CDataExchange* pDX)
 {
-    CDialogEx::DoDataExchange(pDX);
-    DDX_Control(pDX, IDC_COMBO_COMS, m_cbComPorts);
-    DDX_Control(pDX, IDC_RICHEDIT_LOG, m_reLog);
-    DDX_Control(pDX, IDC_COMBO_FFU_PATHS, m_cbFfuPaths);
-    DDX_Control(pDX, IDC_COMBO_DISKS, m_cbDisks);
-    DDX_Control(pDX, IDC_COMBO_WORKSPACE, m_cbWorkspaces);
-    DDX_Control(pDX, IDC_COMBO_SOURCE_SYS_FILE, m_cbDriverSourceFile);
-    DDX_Control(pDX, IDC_COMBO_DEST_DIR, m_cbDestinationDir);
-    DDX_Control(pDX, IDC_COMBO_EXTRA_PARAMS, m_cbDbgExecutables);
-    DDX_Control(pDX, IDC_COMBO_DEBUGGEE_IP, m_cbDebuggeeIPs);
-    DDX_Control(pDX, IDC_COMBO_DEBUGGEE_PORT, m_cbDebuggeePorts);
-    DDX_Control(pDX, IDC_BTN_FLASH, m_btnFlash);
-    DDX_Control(pDX, IDC_EDIT_DST_FILENAME, m_editDstFilename);
-    DDX_Control(pDX, IDC_COMBO_FWFITM_PATH, m_cbFwFitMergedPaths);
-    DDX_Control(pDX, IDC_CHECK_DEBUG_EXECUTABLE, m_chkDebugExe);
+	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_COMBO_COMS, m_cbComPorts);
+	DDX_Control(pDX, IDC_RICHEDIT_LOG, m_reLog);
+	DDX_Control(pDX, IDC_COMBO_FFU_PATHS, m_cbFfuPaths);
+	DDX_Control(pDX, IDC_COMBO_DISKS, m_cbDisks);
+	DDX_Control(pDX, IDC_COMBO_WORKSPACE, m_cbWorkspaces);
+	DDX_Control(pDX, IDC_COMBO_SOURCE_SYS_FILE, m_cbDriverSourceFile);
+	DDX_Control(pDX, IDC_COMBO_DEST_DIR, m_cbDestinationDir);
+	DDX_Control(pDX, IDC_COMBO_EXTRA_PARAMS, m_cbDbgExecutables);
+	DDX_Control(pDX, IDC_COMBO_DEBUGGEE_IP, m_cbDebuggeeIPs);
+	DDX_Control(pDX, IDC_COMBO_DEBUGGEE_PORT, m_cbDebuggeePorts);
+	DDX_Control(pDX, IDC_BTN_FLASH, m_btnFlash);
+	DDX_Control(pDX, IDC_EDIT_DST_FILENAME, m_editDstFilename);
+	DDX_Control(pDX, IDC_COMBO_FWFITM_PATH, m_cbFwFitMergedPaths);
+	DDX_Control(pDX, IDC_CHECK_DEBUG_EXECUTABLE, m_chkDebugExe);
+	DDX_Control(pDX, IDC_COMBO_BAUDRATE, m_cbBaudRates);
 }
 
 CDebugAssistDlg::~CDebugAssistDlg()
@@ -392,6 +393,7 @@ void CDebugAssistDlg::LoadIni()
 	LoadComboStrings(m_cbDbgExecutables, TEXT("DbgExecutable"));
 	LoadComboStrings(m_cbDebuggeeIPs, TEXT("DebuggeeIP"));
 	LoadComboStrings(m_cbDebuggeePorts, TEXT("DebuggeePort"));
+	LoadComboStrings(m_cbBaudRates, TEXT("BaudRate"));
 	LoadComboStrings(m_cbFwFitMergedPaths, TEXT("UbootPath"));
 	LoadWindbgParameter();
 }
@@ -527,6 +529,7 @@ void CDebugAssistDlg::SaveIni()
 	SaveComboStrings(m_cbDbgExecutables, TEXT("DbgExecutable"));
 	SaveComboStrings(m_cbDebuggeeIPs, TEXT("DebuggeeIP"));
 	SaveComboStrings(m_cbDebuggeePorts, TEXT("DebuggeePort"));
+	SaveComboStrings(m_cbBaudRates, TEXT("BaudRate"));
 	SaveComboStrings(m_cbFwFitMergedPaths, TEXT("UbootPath"));
 	SaveWindbgParameter();
 }
@@ -551,7 +554,6 @@ unsigned WINAPI ThreadUpdateStatus(LPVOID lP)
         {
             break;
         }
-
     }
 	pDlg->EnableCtrls(TRUE);
 	bThreadRunning = FALSE;
@@ -615,6 +617,12 @@ BOOL CDebugAssistDlg::OnInitDialog()
 	LoadIni();
 	CleanEnvironment();
 	UpdateStatusProc();
+	if (m_cbBaudRates.GetCount() == 0) {
+		m_cbBaudRates.AddString(L"115200");
+		m_cbBaudRates.AddString(L"921600");
+		m_cbBaudRates.SetCurSel(0);
+	}
+
 
 	_beginthreadex(NULL, 0, ThreadUpdateSystemInfo, this, 0, NULL);
 	return TRUE;  // return TRUE  unless you set the focus to a control
@@ -690,13 +698,14 @@ void CDebugAssistDlg::OnBnClickedBtnComDbg()
 	CString strComPort;
 	CString strWorkspace;
 	CString strExecutable;
+	CString strBaudRate;
     BOOL bDbgExe = GetDbgExeEnable();
 
 	m_cbComPorts.GetWindowTextW(strComPort);
 	m_cbWorkspaces.GetWindowTextW(strWorkspace);
 	m_cbDbgExecutables.GetWindowTextW(strExecutable);
-
-
+	m_cbBaudRates.GetWindowTextW(strBaudRate);
+	
 	CloseSpecificComWnd(bDbgExe ? strExecutable : strComPort, !bDbgExe);
 
 	PARAM_T para;
@@ -714,7 +723,7 @@ void CDebugAssistDlg::OnBnClickedBtnComDbg()
     }
     else
     {
-        para.strCmd.Format(TEXT("windbg.exe -a -d -b -v -k com:port=%s,baud=921600 -y \"cache*c:\\symbols; SRV*http://symweb\""), strComPort);
+        para.strCmd.Format(TEXT("windbg.exe -a -d -b -v -k com:port=%s,baud=%s -y \"cache*c:\\symbols; SRV*http://symweb\""), strComPort, strBaudRate);
         m_mapWindbgParameter[strComPort] = strWorkspace;
     }
 
@@ -2015,6 +2024,7 @@ void CDebugAssistDlg::UpdateWindbgTypeCombos()
 {
     m_cbDbgExecutables.EnableWindow(GetDbgExeEnable());
     m_cbComPorts.EnableWindow(!GetDbgExeEnable());
+	m_cbBaudRates.EnableWindow(!GetDbgExeEnable());
 }
 
 void CDebugAssistDlg::OnBnClickedCheckDebugExecutable()

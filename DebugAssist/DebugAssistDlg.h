@@ -200,4 +200,5 @@ public:
     afx_msg void OnBnClickedCheckDebugExecutable();
     CButton m_chkDebugExe;
     afx_msg void OnBnClickedBtnPutty();
+	CAutoComboBox m_cbBaudRates;
 };
