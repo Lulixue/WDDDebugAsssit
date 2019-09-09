@@ -137,6 +137,7 @@ private:
 	SYSTEM_STATUS m_systemStatus;
 	
 protected:
+	void UpdateIMX8(CString strPath);
 	void UpdateStatus();
 	void CDebugAssistDlg::RegisterDevice();
 	HICON m_hIcon;
@@ -201,4 +202,5 @@ public:
     CButton m_chkDebugExe;
     afx_msg void OnBnClickedBtnPutty();
 	CAutoComboBox m_cbBaudRates;
+	CButton m_chkIMX8;
 };

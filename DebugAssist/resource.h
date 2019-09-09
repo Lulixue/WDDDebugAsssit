@@ -63,6 +63,8 @@
 #define IDC_CHECK_DEBUG_EXECUTABLE      1044
 #define IDC_BUTTON2                     1045
 #define IDC_BTN_PUTTY                   1045
+#define IDC_CHECK_DEBUG_EXECUTABLE2     1046
+#define IDC_CHECK_IMX8_DD               1046
 
 // Next default values for new objects
 // 

@@ -168,6 +168,7 @@ void CDebugAssistDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_COMBO_FWFITM_PATH, m_cbFwFitMergedPaths);
 	DDX_Control(pDX, IDC_CHECK_DEBUG_EXECUTABLE, m_chkDebugExe);
 	DDX_Control(pDX, IDC_COMBO_BAUDRATE, m_cbBaudRates);
+	DDX_Control(pDX, IDC_CHECK_IMX8_DD, m_chkIMX8);
 }
 
 CDebugAssistDlg::~CDebugAssistDlg()
@@ -1173,7 +1174,8 @@ void CDebugAssistDlg::EnableCtrls(BOOL bEnable)
 			IDC_RICHEDIT_LOG, IDC_COMBO_DEBUGGEE_IP, IDC_COMBO_DEBUGGEE_PORT, IDC_EDIT_DST_FILENAME,
 			IDC_BUTTON_TEST_IP, IDC_BUTTON_BACKSTAGE_ADMIN, IDC_BUTTON_REFRESH, IDC_BUTTON_UEFI_DIR,
 			IDC_BUTTON_BROWSE_FWFITMERGED, IDC_COMBO_FWFITM_PATH, IDC_BUTTON_DD_FLASH,
-            IDC_BUTTON_DATA_TOOL, IDC_CHECK_DEBUG_EXECUTABLE, IDC_BTN_PUTTY
+            IDC_BUTTON_DATA_TOOL, IDC_CHECK_DEBUG_EXECUTABLE, IDC_BTN_PUTTY, IDC_COMBO_BAUDRATE,
+			IDC_CHECK_IMX8_DD,
 	};
 
 	int size = sizeof(CONTROLS) / sizeof(UINT);
@@ -1607,6 +1609,7 @@ void CDebugAssistDlg::EjectDrive()
         bRet ? MB_ICONINFORMATION : MB_ICONERROR);
     RemoveUefiDrive();
 }
+
 int CDebugAssistDlg::RemoveUefiDrive()
 {
 	HDEVINFO   hDevInfo;
@@ -1850,7 +1853,10 @@ afx_msg LRESULT CDebugAssistDlg::OnUmsgComSelChange(WPARAM wParam, LPARAM lParam
 	}
 	else if ((m_cbFwFitMergedPaths.GetDlgCtrlID() == ctrlID))
 	{
+		CString strPath;
+		m_cbFwFitMergedPaths.GetWindowTextW(strPath);
 		ShowFileInfo(m_cbFwFitMergedPaths);
+		UpdateIMX8(strPath);
 	}
 	else if (m_cbFfuPaths.GetDlgCtrlID() == ctrlID)
 	{
@@ -1864,13 +1870,26 @@ afx_msg LRESULT CDebugAssistDlg::OnUmsgComSelChange(WPARAM wParam, LPARAM lParam
 	return 0;
 }
 
+void CDebugAssistDlg::UpdateIMX8(CString strPath)
+{ 
+	BOOL bIMX8 = FALSE;
+	strPath = strPath.MakeLower();
+	if (strPath.Find(L"uefi.fit") != -1) {
+		bIMX8 = TRUE;
+	}
+	else if (strPath.Find(L"flash.bin") != -1) {
+		bIMX8 = TRUE;
+	}
+	m_chkIMX8.SetCheck(bIMX8 ? BST_CHECKED : BST_UNCHECKED);
+}
+
 
 void CDebugAssistDlg::OnBnClickedButtonBrowseFwfitmerged()
 {
 
     CFileDialog ffuDialog(TRUE, TEXT("Uboot File for IOT"),
         NULL, OFN_OVERWRITEPROMPT | OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST,
-        TEXT("firmware_fit.merged|*.merged|All|*.*|"), this);
+        TEXT("firmware|firmware_merged.merged;flash.bin;uefi.fit|All|*.*|"), this);
 
     //wchar_t buffer[MAX_PATH] = { 0 };
     //GetModuleFileName(NULL, buffer, MAX_PATH);
@@ -1886,29 +1905,48 @@ void CDebugAssistDlg::OnBnClickedButtonBrowseFwfitmerged()
     }
 
     CString strPath = ffuDialog.GetPathName();
+	CString strFile = ffuDialog.GetFileName();
 
     AddComboString(m_cbFwFitMergedPaths, strPath);
     SetComboText(m_cbFwFitMergedPaths, strPath);
+	UpdateIMX8(strFile);
 }
 
 
 void CDebugAssistDlg::OnBnClickedButtonDdFlash()
 {
 	int nRet;
-	nRet = MessageBox(TEXT("Are you sure to dd flash the drive?"), L"Warning", MB_YESNOCANCEL | MB_ICONQUESTION);
+	BOOL bIMX8 = m_chkIMX8.GetCheck() == BST_CHECKED;
+	CString strPath;
+	PARAM_T para;
+	para.nType = CMD_POWERSHELL | CMD_NO_EXIT;
+
+	m_cbFwFitMergedPaths.GetWindowTextW(strPath); 
+	
+	if (bIMX8) {
+		if (strPath.Find(L"uefi.fit") != -1) {
+			para.strCmd.Format(TEXT("dd if=%s of=\\\\.\\PhysicalDrive%d bs=1024 seek=2176"),
+				strPath, m_nPhysicalDriveNo); 
+		}
+		else if (strPath.Find(L"flash.bin") != -1) {
+			para.strCmd.Format(TEXT("dd if=%s of=\\\\.\\PhysicalDrive%d  bs=512 seek=66"),
+				strPath, m_nPhysicalDriveNo); 
+		}
+	} 
+	else {
+		para.strCmd.Format(TEXT("dd if=%s of=\\\\.\\PhysicalDrive%d bs=512 seek=2"),
+			strPath, m_nPhysicalDriveNo);
+	}
+	CString note;
+	note.Format(TEXT("Are you sure to dd flash the drive %s ?"), !bIMX8 ? L"" : L"IMX8");
+
+	nRet = MessageBox(note, L"Warning", MB_YESNOCANCEL | MB_ICONQUESTION);
 	if (nRet != IDYES)
 	{
 		return;
 	}
 	ShowFileInfo(m_cbFwFitMergedPaths);
-
-	PARAM_T para;
-	CString strPath;
-
-	m_cbFwFitMergedPaths.GetWindowTextW(strPath);
-	para.nType = CMD_POWERSHELL | CMD_NO_EXIT;
-	para.strCmd.Format(TEXT("dd if=%s of=\\\\.\\PhysicalDrive%d bs=512 seek=2"),
-		strPath, m_nPhysicalDriveNo);
+	 
 
 	para.bRet = CProcessInterface::CreateCmdWindow(&para);
 }
